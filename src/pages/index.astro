@@ -1,6 +1,8 @@
 ---
 import Layout from "../layouts/Layout.astro"
 import Counter from "../components/Counter.svelte"
+
+const baseUrl = import.meta.env.BASE_URL
 ---
 
 <Layout title="Astro PWA Template">
@@ -12,7 +14,7 @@ import Counter from "../components/Counter.svelte"
 			<div class="w-30 mb-6 rounded-full border-4 border-primary overflow-hidden">
 				<img
 					class="scale-120"
-					src="favicon.svg"
+					src={`${baseUrl}favicon.svg`}
 				/>
 			</div>
 			</a>

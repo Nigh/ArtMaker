@@ -2,7 +2,7 @@
 
 This is a production-ready starter template for building Progressive Web Apps (PWA) using **Astro 5**. It combines the performance of Astro with the interactivity of Svelte, styled with Tailwind CSS v4 and DaisyUI.
 
-<img width="418" height="491" alt="image" src="https://github.com/user-attachments/assets/406e1423-9bb8-43c5-b745-76acd93ee216" />
+<img alt="image" src="https://github.com/user-attachments/assets/4a1fa0a7-d0e0-48ad-910d-26bb27595b0f" />
 
 ## 🚀 Tech Stack
 
@@ -69,6 +69,10 @@ This is a production-ready starter template for building Progressive Web Apps (P
 >	* Go to your code and make a small visible change, then run `npm run build` again.
 >	* Go back to the `localhost:4321` page and refresh manually once.
 >	* The Service Worker will detect the new hash in the background, and the Toast should pop up asking you to "Reload" to apply the new version.
+
+> [!TIP]
+> For DaisyUI theme setup and advanced theme config, please refer to the official docs:
+> https://daisyui.com/docs/themes/
 
 
 
