@@ -1,15 +1,15 @@
 # Astro PWA Template (Svelte + Tailwind + DaisyUI)
 
-This is a production-ready starter template for building Progressive Web Apps (PWA) using **Astro 5**. It combines the performance of Astro with the interactivity of Svelte, styled with Tailwind CSS v4 and DaisyUI.
+This is a production-ready starter template for building Progressive Web Apps (PWA) using **Astro**. It combines the performance of Astro with the interactivity of Svelte, styled with Tailwind CSS v4 and DaisyUI.
 
 <img alt="image" src="https://github.com/user-attachments/assets/4a1fa0a7-d0e0-48ad-910d-26bb27595b0f" />
 
 ## 🚀 Tech Stack
 
-* **Framework:** [Astro 5](https://astro.build)
-* **UI Library:** [Svelte 5](https://svelte.dev)
-* **Styling:** [Tailwind CSS v4](https://tailwindcss.com)
-* **Components:** [DaisyUI 5](https://daisyui.com)
+* **Framework:** [Astro](https://astro.build)
+* **UI Library:** [Svelte](https://svelte.dev)
+* **Styling:** [Tailwind CSS](https://tailwindcss.com)
+* **Components:** [DaisyUI](https://daisyui.com)
 * **PWA:** [Vite Plugin PWA](https://vite-pwa-org.netlify.app/)
 * **Routing:** Astro View Transitions
 
@@ -19,7 +19,7 @@ This is a production-ready starter template for building Progressive Web Apps (P
 * **📱 Installable:** Fully configured `manifest.webmanifest` and Service Worker.
 * **🔄 Auto-Update:** Includes a DaisyUI "New Version Available" toast prompt.
 * **⚡ View Transitions:** Native app-like navigation animations.
-* **🎨 Theming:** Tailwind v4 + DaisyUI plugin setup in `global.css`.
+* **🎨 Theming:** Tailwind + DaisyUI plugin setup in `global.css`.
 
 ## 🛠️ Prerequisites
 
