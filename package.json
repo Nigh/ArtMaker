@@ -14,7 +14,7 @@
     "astro": "^6.1.5",
     "daisyui": "^5.5.19",
     "svelte": "^5.55.2",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "devDependencies": {
     "@vite-pwa/astro": "^1.2.0",
