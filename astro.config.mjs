@@ -13,8 +13,8 @@ export default defineConfig({
         name: 'Astro PWA Starter',
         short_name: 'AstroPWA',
         description: 'Astro + Svelte + Tailwind + DaisyUI PWA',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
+        theme_color: '#353535',
+        background_color: '#353535',
         display: 'standalone',
         icons: [
           {
