@@ -13,6 +13,8 @@ ArtMaker is an Astro 6, Svelte 5, and TypeScript PWA for designing pixel-accurat
 
 Run check, tests, and build before handing off a change.
 
+After every project edit, review and update this `AGENTS.md` in the same change whenever architecture, commands, behavior, constraints, or contributor expectations have changed. Treat keeping this file synchronized with the actual project as part of the definition of done; do not leave stale guidance behind.
+
 ## Architecture
 
 - `src/components/Editor.svelte` owns editor interaction, canvas composition, and panels.
@@ -25,6 +27,7 @@ Run check, tests, and build before handing off a change.
 - Convert physical dimensions to pixels with the document DPI and include all four bleed edges.
 - Preserve imported image originals. Never replace source bytes with a transformed or resampled copy.
 - Transform raw layer content into document space before applying its effect stack.
+- Convert document-space pointer coordinates through the active layer's inverse transform before editing its raw pixels.
 - Apply enabled effects strictly in their displayed order.
 - Halftone is a document-origin, integer-pixel square alpha mask; spacing is the empty gap between dots.
 - Colorize takes hue and saturation from its configured color and lightness from the Rec.709 grayscale source after the lightness adjustment.
