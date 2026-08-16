@@ -5,8 +5,8 @@ export interface EffectDefinition { type: EffectType; label: { "zh-CN": string; 
 export interface EffectContext { transform?: Transform }
 
 export const effectRegistry: EffectDefinition[] = [
-  { type: "colorize", label: { "zh-CN": "着色", en: "Colorize" }, defaults: { color: "#ff8fa3", strength: 1 } },
-  { type: "gradientColorize", label: { "zh-CN": "渐变着色", en: "Gradient colorize" }, defaults: { from: "#ff8fa3", to: "#8fcfff", direction: "horizontal", strength: 1 } },
+  { type: "colorize", label: { "zh-CN": "着色", en: "Colorize" }, defaults: { color: "#ff8fa3", strength: 1, lightness: 0 } },
+  { type: "gradientColorize", label: { "zh-CN": "渐变着色", en: "Gradient colorize" }, defaults: { from: "#ff8fa3", to: "#8fcfff", direction: "horizontal", strength: 1, lightness: 0 } },
   { type: "replaceColor", label: { "zh-CN": "替换颜色", en: "Replace color" }, defaults: { sourceColor: "#000000", color: "#ff8fa3", tolerance: 100, softness: 0, strength: 1 } },
   { type: "gradientReplaceColor", label: { "zh-CN": "渐变替换颜色", en: "Gradient replace color" }, defaults: { sourceColor: "#000000", from: "#ff8fa3", to: "#8fcfff", direction: "horizontal", tolerance: 100, softness: 0, strength: 1 } },
   { type: "halftone", label: { "zh-CN": "网点 Mask", en: "Halftone mask" }, defaults: { dot: 4, spacingX: 1, spacingY: 1, stagger: false } },
@@ -29,12 +29,13 @@ const bounds=(d:Uint8ClampedArray,w:number,h:number)=>{let minX=w,minY=h,maxX=-1
 const gradientAt=(p:Record<string,number|string|boolean>,x:number,y:number,b:{minX:number;minY:number;w:number;h:number})=>{const a=rgbToHsl(hex(String(p.from))),z=rgbToHsl(hex(String(p.to))),nx=(x-b.minX)/b.w,ny=(y-b.minY)/b.h,dir=String(p.direction??"horizontal"),t=dir==="vertical"?ny:dir==="diagonal-down"?(nx+ny)/2:dir==="diagonal-up"?(nx+1-ny)/2:nx,delta=((z[0]-a[0]+540)%360)-180;return[(a[0]+delta*t+360)%360,a[1]+(z[1]-a[1])*t];};
 const matchWeight=(rgb:number[],target:number[],tolerance:number,softness:number)=>{const distance=Math.hypot(rgb[0]-target[0],rgb[1]-target[1],rgb[2]-target[2])/Math.sqrt(3*255*255)*100,edge=Math.max(0.001,softness);return tolerance>=100?1:1-clamp((distance-tolerance)/edge);};
 const documentPoint=(x:number,y:number,tr?:Transform)=>{if(!tr)return{x,y};const sx=x*tr.scaleX,sy=y*tr.scaleY,a=tr.rotation*Math.PI/180;return{x:sx*Math.cos(a)-sy*Math.sin(a)+tr.x,y:sx*Math.sin(a)+sy*Math.cos(a)+tr.y};};
+const adjustedLightness=(value:number,amount:number)=>{const a=clamp(amount/100,-1,1);return a<0?value*(1+a):value+(1-value)*a;};
 
 export function processPixels(source:ImageData,effects:LayerEffect[],context:EffectContext={}):ImageData{
   const out=new ImageData(new Uint8ClampedArray(source.data),source.width,source.height);
   for(const effect of effects.filter(e=>e.enabled)){
     const d=out.data,p=effect.params,b=bounds(d,out.width,out.height),strength=clamp(Number(p.strength??1));
-    if(effect.type==="colorize"||effect.type==="gradientColorize")for(let y=0;y<out.height;y++)for(let x=0;x<out.width;x++){const i=(y*out.width+x)*4;if(!d[i+3])continue;const l=(d[i]*.2126+d[i+1]*.7152+d[i+2]*.0722)/255,hs=effect.type==="colorize"?rgbToHsl(hex(String(p.color))):gradientAt(p,x,y,b),target=hslToRgb(hs[0],hs[1],l);for(let k=0;k<3;k++)d[i+k]+=(target[k]-d[i+k])*strength;}
+    if(effect.type==="colorize"||effect.type==="gradientColorize")for(let y=0;y<out.height;y++)for(let x=0;x<out.width;x++){const i=(y*out.width+x)*4;if(!d[i+3])continue;const l=adjustedLightness((d[i]*.2126+d[i+1]*.7152+d[i+2]*.0722)/255,Number(p.lightness??0)),hs=effect.type==="colorize"?rgbToHsl(hex(String(p.color))):gradientAt(p,x,y,b),target=hslToRgb(hs[0],hs[1],l);for(let k=0;k<3;k++)d[i+k]+=(target[k]-d[i+k])*strength;}
     if(effect.type==="replaceColor"||effect.type==="gradientReplaceColor"){const sourceColor=hex(String(p.sourceColor??"#000000"));for(let y=0;y<out.height;y++)for(let x=0;x<out.width;x++){const i=(y*out.width+x)*4;if(!d[i+3])continue;const rgb=[d[i],d[i+1],d[i+2]],weight=matchWeight(rgb,sourceColor,Number(p.tolerance??100),Number(p.softness??0));if(!weight)continue;const target=effect.type==="replaceColor"?hex(String(p.color)):hslToRgb(...gradientAt(p,x,y,b) as [number,number],.5),l=(d[i]*.2126+d[i+1]*.7152+d[i+2]*.0722)/255,mix=(1-l)*strength*weight;for(let k=0;k<3;k++)d[i+k]+=(target[k]-d[i+k])*mix;}}
     if(effect.type==="halftone"){const dot=Math.max(1,Math.round(Number(p.dot))),pitchX=dot+Math.max(1,Math.round(Number(p.spacingX))),pitchY=dot+Math.max(1,Math.round(Number(p.spacingY)));for(let y=0;y<out.height;y++)for(let x=0;x<out.width;x++){const i=(y*out.width+x)*4,doc=documentPoint(x,y,context.transform),row=Math.floor(doc.y/pitchY),shift=Boolean(p.stagger)&&Math.abs(row%2)===1?Math.floor(pitchX/2):0,mx=((Math.floor(doc.x)-shift)%pitchX+pitchX)%pitchX,my=((Math.floor(doc.y)%pitchY)+pitchY)%pitchY;if(mx>=dot||my>=dot)d[i+3]=0;}}
     if(effect.type==="adjust"){const br=Number(p.brightness),co=Number(p.contrast),f=(259*(co+255))/(255*(259-co));for(let i=0;i<d.length;i+=4)for(let k=0;k<3;k++)d[i+k]=f*(d[i+k]-128)+128+br;}
