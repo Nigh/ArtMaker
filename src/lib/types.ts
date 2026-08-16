@@ -6,8 +6,8 @@ export interface Bleed { top: number; right: number; bottom: number; left: numbe
 export interface DocumentSpec { unit: Unit; dpi: number; width: number; height: number; bleed: Bleed; safeMargin: number }
 export interface Transform { x: number; y: number; scaleX: number; scaleY: number; rotation: number }
 
-export type EffectType = "colorize" | "gradient" | "halftone" | "array" | "contour" | "stroke" | "shadow" | "blur" | "adjust" | "levels" | "threshold";
-export interface LayerEffect { id: string; type: EffectType; version: 1; enabled: boolean; params: Record<string, number | string | boolean> }
+export type EffectType = "colorize" | "gradientColorize" | "replaceColor" | "gradientReplaceColor" | "halftone" | "array" | "contour" | "stroke" | "shadow" | "blur" | "adjust" | "levels" | "threshold";
+export interface LayerEffect { id: string; type: EffectType; version: 2; enabled: boolean; params: Record<string, number | string | boolean> }
 export interface SourceAsset { id: string; name: string; mime: string; width: number; height: number; checksum: string; bytes: Blob }
 
 export interface ArtLayer {
@@ -17,7 +17,7 @@ export interface ArtLayer {
 }
 
 export interface ArtMakerDocument {
-  format: "artmaker"; version: 1; id: string; name: string; locale: "zh-CN" | "en";
+  format: "artmaker"; version: 2; id: string; name: string; locale: "zh-CN" | "en";
   createdAt: string; updatedAt: string; spec: DocumentSpec; layers: ArtLayer[]; activeLayerId?: string;
   background: string | null;
 }
@@ -32,4 +32,4 @@ export const documentPixels = (spec: DocumentSpec) => ({
   trimWidth: toPixels(spec.width, spec.unit, spec.dpi), trimHeight: toPixels(spec.height, spec.unit, spec.dpi),
 });
 export const newLayer = (name = "Paint layer"): ArtLayer => ({ id: uid(), name, type: "paint", visible: true, locked: false, opacity: 1, blendMode: "normal", transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 }, effects: [] });
-export const newDocument = (locale: "zh-CN" | "en" = "zh-CN"): ArtMakerDocument => { const layer = newLayer(locale === "zh-CN" ? "绘制图层" : "Paint layer"); const now = new Date().toISOString(); return { format: "artmaker", version: 1, id: uid(), name: "Untitled", locale, createdAt: now, updatedAt: now, spec: defaultSpec(), layers: [layer], activeLayerId: layer.id, background: "#ffffff" }; };
+export const newDocument = (locale: "zh-CN" | "en" = "zh-CN"): ArtMakerDocument => { const layer = newLayer(locale === "zh-CN" ? "绘制图层" : "Paint layer"); const now = new Date().toISOString(); return { format: "artmaker", version: 2, id: uid(), name: "Untitled", locale, createdAt: now, updatedAt: now, spec: defaultSpec(), layers: [layer], activeLayerId: layer.id, background: "#ffffff" }; };
