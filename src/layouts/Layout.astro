@@ -2,7 +2,6 @@
 import { ClientRouter } from 'astro:transitions';
 import { pwaInfo } from "virtual:pwa-info"
 import ReloadPrompt from "../components/ReloadPrompt.svelte"
-import ThemeToggle from "../components/ThemeToggle.svelte"
 import "../styles/global.css"
 
 interface Props {
@@ -15,11 +14,12 @@ const assetBaseUrl = baseUrl.replace(/\/$/, "")
 ---
 
 <!doctype html>
-<html lang="en" data-theme="xianii">
+<html lang="zh-CN" data-theme="xianii">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="description" content="Astro description" />
-		<meta name="viewport" content="width=device-width" />
+		<meta name="description" content="A non-destructive, print-ready canvas editor for cards and small-format artwork." />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#242424" />
 		<link rel="icon" type="image/svg+xml" href={`${assetBaseUrl}/favicon.svg`} />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
@@ -40,7 +40,6 @@ const assetBaseUrl = baseUrl.replace(/\/$/, "")
 		{pwaInfo && <Fragment set:html={pwaInfo.webManifest.linkTag} />}
 	</head>
 	<body>
-		<ThemeToggle client:load />
 		<slot />
 		<ReloadPrompt client:load />
 	</body>

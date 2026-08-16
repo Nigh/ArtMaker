@@ -10,11 +10,11 @@ export default defineConfig({
     AstroPWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Astro PWA Starter',
-        short_name: 'AstroPWA',
-        description: 'Astro + Svelte + Tailwind + DaisyUI PWA',
-        theme_color: '#353535',
-        background_color: '#353535',
+        name: 'ArtMaker Print Canvas',
+        short_name: 'ArtMaker',
+        description: 'Non-destructive print canvas editor',
+        theme_color: '#242424',
+        background_color: '#161616',
         display: 'standalone',
         icons: [
           {
