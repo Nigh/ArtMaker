@@ -11,7 +11,8 @@ export interface LayerEffect { id: string; type: EffectType; version: 2; enabled
 export interface SourceAsset { id: string; name: string; mime: string; width: number; height: number; checksum: string; bytes: Blob }
 
 export type MaskSpace = "layer" | "canvas";
-export interface LayerMask { space: MaskSpace; enabled: boolean; bitmap?: string }
+export interface LayerMask { space: MaskSpace; enabled: boolean; bitmap?: string; transform?: Transform }
+export const identityTransform = (): Transform => ({ x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 });
 
 export interface ArtLayer {
   id: string; name: string; type: "paint" | "image" | "text" | "group"; visible: boolean; locked: boolean;

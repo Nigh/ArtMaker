@@ -35,12 +35,13 @@ export function applyMaskLuminance(source:ImageData,mask:ImageData):ImageData{
   for(let i=0;i<n;i+=4){const cover=(m[i]*.2126+m[i+1]*.7152+m[i+2]*.0722)/255*(m[i+3]/255);d[i+3]=d[i+3]*(1-cover);}
   return out;
 }
-export function rebakeMaskData(src:ImageData,tr:Transform,from:MaskSpace,to:MaskSpace):ImageData{
+export function rebakeMaskData(src:ImageData,host:Transform,from:MaskSpace,to:MaskSpace,maskTr:Transform={x:0,y:0,scaleX:1,scaleY:1,rotation:0}):ImageData{
   const out=new ImageData(new Uint8ClampedArray(src.width*src.height*4),src.width,src.height);
-  if(from===to){out.data.set(src.data);return out;}
+  if(from===to&&!maskTr.x&&!maskTr.y&&maskTr.scaleX===1&&maskTr.scaleY===1&&!maskTr.rotation){out.data.set(src.data);return out;}
   const s=src.data,d=out.data,w=src.width,h=src.height;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-    const p=from==="layer"?inverseDocumentPoint({x,y},tr):documentPoint(x,y,tr),ix=Math.round(p.x),iy=Math.round(p.y);
+    const doc=to==="canvas"?{x,y}:documentPoint(x,y,host);
+    const parent=from==="layer"?inverseDocumentPoint(doc,host):doc,p=inverseDocumentPoint(parent,maskTr),ix=Math.round(p.x),iy=Math.round(p.y);
     if(ix<0||iy<0||ix>=w||iy>=h)continue;
     const si=(iy*w+ix)*4,di=(y*w+x)*4;
     d[di]=s[si];d[di+1]=s[si+1];d[di+2]=s[si+2];d[di+3]=s[si+3];

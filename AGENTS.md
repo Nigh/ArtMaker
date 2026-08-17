@@ -39,7 +39,7 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - Halftone is a document-origin, integer-pixel square alpha mask; spacing is the empty gap between dots.
 - Contour builds a signed distance field from painted alpha (or Rec.709 luminance when the layer is fully opaque) and draws anti-aliased isolines, so strokes on a transparent layer fill the canvas with a topographic pattern.
 - Colorize takes hue and saturation from its configured color and lightness from the Rec.709 grayscale source after the lightness adjustment.
-- A layer mask uses Rec.709 grayscale: black fully reveals the host, white fully covers it. Layer-space masks apply before the host transform; canvas-space masks apply after. Switching space rebakes pixels so the mask stays put on the canvas.
+- A layer mask uses Rec.709 grayscale: black fully reveals the host, white fully covers it. Layer-space masks apply before the host transform; canvas-space masks apply after. The select tool moves and scales mask content while the mask is selected. Switching space rebakes pixels and the mask transform so the mask stays put on the canvas.
 - Selecting a mask enters edit mode: only the host layer is composited. Showing mask pixels is an edit-mode preview and is omitted from PNG export.
 - When changing serialized document structures, add an explicit migration and update round-trip tests.
 - Keep canvas interactions pixel-perfect at zoom levels of 100% and above.

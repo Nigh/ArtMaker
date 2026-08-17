@@ -83,6 +83,11 @@ describe("layer masks",()=>{
     const back=rebakeMaskData(canvas,tr,"canvas","layer");
     expect(back.data[(1*4+1)*4+3]).toBe(255);
   });
+  it("bakes mask transform when switching space",()=>{
+    const mask=pixel(4,1,1,255,255,255,255),host={x:1,y:0,scaleX:1,scaleY:1,rotation:0},local={x:1,y:0,scaleX:1,scaleY:1,rotation:0};
+    const canvas=rebakeMaskData(mask,host,"layer","canvas",local);
+    expect(canvas.data[(1*4+3)*4+3]).toBe(255);
+  });
 });
 describe("layer links",()=>{
   it("resolves through a chain to the content owner",()=>{
