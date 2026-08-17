@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createEffect, processPixels, applyMaskLuminance, rebakeMaskData } from "./effects";
 import { migrateDocument, prepareExportDocument } from "./project";
-import { documentPixels, fitImportScale, newDocument, newLayer, pixelBox, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources } from "./types";
+import { documentPixels, fitImportScale, newDocument, newLayer, pixelBox, pixelLine, snapLine, snapSquare, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources } from "./types";
 
 if (!(globalThis as {ImageData?:unknown}).ImageData) (globalThis as {ImageData:unknown}).ImageData=class { data:Uint8ClampedArray;width:number;height:number;constructor(data:Uint8ClampedArray,width:number,height:number){this.data=data;this.width=width;this.height=height} };
 
@@ -21,6 +21,23 @@ describe("pixel box", () => {
   it("rounds to a hard integer rectangle", () => {
     expect(pixelBox(0.4, 0.6, 10.4, 4.4)).toEqual({x:0,y:1,w:10,h:3});
     expect(pixelBox(5, 5, 5, 5)).toEqual({x:5,y:5,w:1,h:1});
+  });
+});
+describe("shape snap", () => {
+  const o={x:0,y:0};
+  it("snaps lines to 90 or 45 degrees", () => {
+    expect(snapLine(o,{x:10,y:1})).toEqual({x:10,y:0});
+    expect(snapLine(o,{x:1,y:10})).toEqual({x:0,y:10});
+    expect(snapLine(o,{x:10,y:9})).toEqual({x:10,y:10});
+    expect(snapLine(o,{x:-8,y:2})).toEqual({x:-8,y:0});
+  });
+  it("snaps rects to a square", () => {
+    expect(snapSquare(o,{x:10,y:4})).toEqual({x:10,y:10});
+    expect(snapSquare(o,{x:-3,y:8})).toEqual({x:-8,y:8});
+  });
+  it("walks a Bresenham pixel line", () => {
+    expect(pixelLine(0,0,3,0)).toEqual([{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0}]);
+    expect(pixelLine(0,0,2,2)).toEqual([{x:0,y:0},{x:1,y:1},{x:2,y:2}]);
   });
 });
 describe("scale around anchor", () => {
