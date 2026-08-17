@@ -31,5 +31,6 @@ export const documentPixels = (spec: DocumentSpec) => ({
   trimX: toPixels(spec.bleed.left, spec.unit, spec.dpi), trimY: toPixels(spec.bleed.top, spec.unit, spec.dpi),
   trimWidth: toPixels(spec.width, spec.unit, spec.dpi), trimHeight: toPixels(spec.height, spec.unit, spec.dpi),
 });
+export const fitImportScale = (iw: number, ih: number, cw: number, ch: number) => iw > cw && ih > ch ? Math.min(cw / iw, ch / ih) : 1;
 export const newLayer = (name = "Paint layer"): ArtLayer => ({ id: uid(), name, type: "paint", visible: true, locked: false, opacity: 1, blendMode: "normal", transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 }, effects: [] });
 export const newDocument = (locale: "zh-CN" | "en" = "zh-CN"): ArtMakerDocument => { const layer = newLayer(locale === "zh-CN" ? "绘制图层" : "Paint layer"); const now = new Date().toISOString(); return { format: "artmaker", version: 2, id: uid(), name: "Untitled", locale, createdAt: now, updatedAt: now, spec: defaultSpec(), layers: [layer], activeLayerId: layer.id, background: "#ffffff" }; };
