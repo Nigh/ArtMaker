@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createEffect, processPixels } from "./effects";
 import { migrateDocument } from "./project";
-import { documentPixels, fitImportScale, newDocument, toPixels } from "./types";
+import { documentPixels, fitImportScale, newDocument, scaleAround, toPixels } from "./types";
 
 if (!(globalThis as {ImageData?:unknown}).ImageData) (globalThis as {ImageData:unknown}).ImageData=class { data:Uint8ClampedArray;width:number;height:number;constructor(data:Uint8ClampedArray,width:number,height:number){this.data=data;this.width=width;this.height=height} };
 
@@ -15,6 +15,15 @@ describe("import fit", () => {
     expect(fitImportScale(2000,500,800,800)).toBe(1);
     expect(fitImportScale(2000,2000,800,800)).toBe(0.4);
     expect(fitImportScale(1600,2000,800,800)).toBe(0.4);
+  });
+});
+describe("scale around anchor", () => {
+  const tr={x:0,y:0,scaleX:1,scaleY:1,rotation:0};
+  it("keeps the layer-space anchor fixed when scaling uniformly", () => {
+    expect(scaleAround(tr,10,20,2,2)).toEqual({x:-10,y:-20,scaleX:2,scaleY:2,rotation:0});
+  });
+  it("scales one axis without moving the other", () => {
+    expect(scaleAround(tr,10,20,2,1)).toEqual({x:-10,y:0,scaleX:2,scaleY:1,rotation:0});
   });
 });
 describe("effect registry",()=>{it("creates isolated versioned effects",()=>{const a=createEffect("array"),b=createEffect("array");expect(a.version).toBe(2);expect(a.id).not.toBe(b.id);expect(a.params).toEqual({count:3,dx:24,dy:0});});});
