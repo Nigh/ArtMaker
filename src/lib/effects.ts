@@ -9,7 +9,7 @@ export const effectRegistry: EffectDefinition[] = [
   { type: "gradientColorize", label: { "zh-CN": "渐变着色", en: "Gradient colorize" }, defaults: { from: "#ff8fa3", to: "#8fcfff", direction: "horizontal", strength: 1, lightness: 0 } },
   { type: "replaceColor", label: { "zh-CN": "替换颜色", en: "Replace color" }, defaults: { sourceColor: "#000000", color: "#ff8fa3", tolerance: 100, softness: 0, strength: 1 } },
   { type: "gradientReplaceColor", label: { "zh-CN": "渐变替换颜色", en: "Gradient replace color" }, defaults: { sourceColor: "#000000", from: "#ff8fa3", to: "#8fcfff", direction: "horizontal", tolerance: 100, softness: 0, strength: 1 } },
-  { type: "halftone", label: { "zh-CN": "网点 Mask", en: "Halftone mask" }, defaults: { dot: 4, spacingX: 1, spacingY: 1, stagger: false } },
+  { type: "halftone", label: { "zh-CN": "网点 Mask", en: "Halftone mask" }, defaults: { dot: 4, spacingX: 1, spacingY: 1, linkSpacing: true, stagger: false } },
   { type: "array", label: { "zh-CN": "Array 阵列", en: "Array" }, defaults: { count: 3, dx: 24, dy: 0 } },
   { type: "contour", label: { "zh-CN": "等高线", en: "Contour" }, defaults: { levels: 6, width: 2, offset: 0, invert: false } },
   { type: "stroke", label: { "zh-CN": "描边", en: "Stroke" }, defaults: { size: 3, color: "#ffffff" } },
