@@ -10,20 +10,56 @@ export type EffectType = "colorize" | "gradientColorize" | "replaceColor" | "gra
 export interface LayerEffect { id: string; type: EffectType; version: 2; enabled: boolean; params: Record<string, number | string | boolean> }
 export interface SourceAsset { id: string; name: string; mime: string; width: number; height: number; checksum: string; bytes: Blob }
 
+export type MaskSpace = "layer" | "canvas";
+export interface LayerMask { space: MaskSpace; enabled: boolean; bitmap?: string; transform?: Transform }
+export const identityTransform = (): Transform => ({ x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 });
+
 export interface ArtLayer {
   id: string; name: string; type: "paint" | "image" | "text" | "group"; visible: boolean; locked: boolean;
   opacity: number; blendMode: BlendMode; transform: Transform; effects: LayerEffect[]; assetId?: string;
   linkSourceId?: string; bitmap?: string; text?: string; font?: string; fontSize?: number; color?: string; children?: ArtLayer[];
+  mask?: LayerMask;
 }
 
 export interface ArtMakerDocument {
-  format: "artmaker"; version: 3; id: string; name: string; locale: "zh-CN" | "en";
+  format: "artmaker"; version: 4; id: string; name: string; locale: "zh-CN" | "en";
   createdAt: string; updatedAt: string; spec: DocumentSpec; layers: ArtLayer[]; activeLayerId?: string;
   background: string | null;
 }
 
-export const DOCUMENT_VERSION = 3;
+export const DOCUMENT_VERSION = 4;
 export const PIXEL_TOOLS: ReadonlySet<Tool> = new Set(["brush", "eraser", "line", "rect", "ellipse", "fill"]);
+export const SHAPE_TOOLS: ReadonlySet<Tool> = new Set(["line", "rect", "ellipse"]);
+export function pixelBox(x0: number, y0: number, x1: number, y1: number) {
+  const x = Math.round(Math.min(x0, x1)), y = Math.round(Math.min(y0, y1));
+  return { x, y, w: Math.max(1, Math.round(Math.max(x0, x1)) - x), h: Math.max(1, Math.round(Math.max(y0, y1)) - y) };
+}
+export function snapLine(from: { x: number; y: number }, to: { x: number; y: number }) {
+  const dx = to.x - from.x, dy = to.y - from.y, adx = Math.abs(dx), ady = Math.abs(dy);
+  if (!adx && !ady) return to;
+  const sx = dx < 0 ? -1 : 1, sy = dy < 0 ? -1 : 1, t = Math.tan(Math.PI / 8);
+  if (ady < adx * t) return { x: to.x, y: from.y };
+  if (adx < ady * t) return { x: from.x, y: to.y };
+  const s = Math.round(Math.max(adx, ady));
+  return { x: from.x + sx * s, y: from.y + sy * s };
+}
+export function snapSquare(from: { x: number; y: number }, to: { x: number; y: number }) {
+  const dx = to.x - from.x, dy = to.y - from.y, s = Math.max(Math.abs(dx), Math.abs(dy));
+  return { x: from.x + (dx < 0 ? -s : s), y: from.y + (dy < 0 ? -s : s) };
+}
+export function pixelLine(x0: number, y0: number, x1: number, y1: number) {
+  let x = Math.round(x0), y = Math.round(y0); const x1i = Math.round(x1), y1i = Math.round(y1);
+  const dx = Math.abs(x1i - x), dy = Math.abs(y1i - y), sx = x < x1i ? 1 : -1, sy = y < y1i ? 1 : -1;
+  const pts: { x: number; y: number }[] = [];
+  let err = dx - dy;
+  for (;;) {
+    pts.push({ x, y });
+    if (x === x1i && y === y1i) return pts;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x += sx; }
+    if (e2 < dx) { err += dx; y += sy; }
+  }
+}
 
 export const uid = () => crypto.randomUUID();
 export const defaultSpec = (): DocumentSpec => ({ unit: "mm", dpi: 300, width: 64, height: 89, bleed: { top: 3, right: 3, bottom: 3, left: 3 }, safeMargin: 3 });

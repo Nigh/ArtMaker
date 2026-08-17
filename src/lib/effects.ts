@@ -1,4 +1,4 @@
-import type { EffectType, LayerEffect, Transform } from "./types";
+import type { EffectType, LayerEffect, MaskSpace, Transform } from "./types";
 import { uid } from "./types";
 
 export interface EffectDefinition { type: EffectType; label: { "zh-CN": string; en: string }; defaults: Record<string, number | string | boolean> }
@@ -9,7 +9,7 @@ export const effectRegistry: EffectDefinition[] = [
   { type: "gradientColorize", label: { "zh-CN": "渐变着色", en: "Gradient colorize" }, defaults: { from: "#ff8fa3", to: "#8fcfff", direction: "horizontal", strength: 1, lightness: 0 } },
   { type: "replaceColor", label: { "zh-CN": "替换颜色", en: "Replace color" }, defaults: { sourceColor: "#000000", color: "#ff8fa3", tolerance: 100, softness: 0, strength: 1 } },
   { type: "gradientReplaceColor", label: { "zh-CN": "渐变替换颜色", en: "Gradient replace color" }, defaults: { sourceColor: "#000000", from: "#ff8fa3", to: "#8fcfff", direction: "horizontal", tolerance: 100, softness: 0, strength: 1 } },
-  { type: "halftone", label: { "zh-CN": "网点 Mask", en: "Halftone mask" }, defaults: { dot: 4, spacingX: 1, spacingY: 1, stagger: false } },
+  { type: "halftone", label: { "zh-CN": "网点 Mask", en: "Halftone mask" }, defaults: { dot: 4, spacingX: 1, spacingY: 1, linkSpacing: true, stagger: false } },
   { type: "array", label: { "zh-CN": "Array 阵列", en: "Array" }, defaults: { count: 3, dx: 24, dy: 0 } },
   { type: "contour", label: { "zh-CN": "等高线", en: "Contour" }, defaults: { levels: 6, width: 2, offset: 0, invert: false } },
   { type: "stroke", label: { "zh-CN": "描边", en: "Stroke" }, defaults: { size: 3, color: "#ffffff" } },
@@ -29,6 +29,25 @@ export const bounds=(d:Uint8ClampedArray,w:number,h:number)=>{let minX=w,minY=h,
 const gradientAt=(p:Record<string,number|string|boolean>,x:number,y:number,b:{minX:number;minY:number;w:number;h:number})=>{const a=rgbToHsl(hex(String(p.from))),z=rgbToHsl(hex(String(p.to))),nx=(x-b.minX)/b.w,ny=(y-b.minY)/b.h,dir=String(p.direction??"horizontal"),t=dir==="vertical"?ny:dir==="diagonal-down"?(nx+ny)/2:dir==="diagonal-up"?(nx+1-ny)/2:nx,delta=((z[0]-a[0]+540)%360)-180;return[(a[0]+delta*t+360)%360,a[1]+(z[1]-a[1])*t];};
 const matchWeight=(rgb:number[],target:number[],tolerance:number,softness:number)=>{const distance=Math.hypot(rgb[0]-target[0],rgb[1]-target[1],rgb[2]-target[2])/Math.sqrt(3*255*255)*100,edge=Math.max(0.001,softness);return tolerance>=100?1:1-clamp((distance-tolerance)/edge);};
 export const documentPoint=(x:number,y:number,tr?:Transform)=>{if(!tr)return{x,y};const sx=x*tr.scaleX,sy=y*tr.scaleY,a=tr.rotation*Math.PI/180;return{x:sx*Math.cos(a)-sy*Math.sin(a)+tr.x,y:sx*Math.sin(a)+sy*Math.cos(a)+tr.y};};
+export const inverseDocumentPoint=(p:{x:number;y:number},tr:Transform)=>{const a=-tr.rotation*Math.PI/180,dx=p.x-tr.x,dy=p.y-tr.y;return{x:(dx*Math.cos(a)-dy*Math.sin(a))/tr.scaleX,y:(dx*Math.sin(a)+dy*Math.cos(a))/tr.scaleY};};
+export function applyMaskLuminance(source:ImageData,mask:ImageData):ImageData{
+  const out=new ImageData(new Uint8ClampedArray(source.data),source.width,source.height),d=out.data,m=mask.data,n=Math.min(d.length,m.length);
+  for(let i=0;i<n;i+=4){const cover=(m[i]*.2126+m[i+1]*.7152+m[i+2]*.0722)/255*(m[i+3]/255);d[i+3]=d[i+3]*(1-cover);}
+  return out;
+}
+export function rebakeMaskData(src:ImageData,host:Transform,from:MaskSpace,to:MaskSpace,maskTr:Transform={x:0,y:0,scaleX:1,scaleY:1,rotation:0}):ImageData{
+  const out=new ImageData(new Uint8ClampedArray(src.width*src.height*4),src.width,src.height);
+  if(from===to&&!maskTr.x&&!maskTr.y&&maskTr.scaleX===1&&maskTr.scaleY===1&&!maskTr.rotation){out.data.set(src.data);return out;}
+  const s=src.data,d=out.data,w=src.width,h=src.height;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const doc=to==="canvas"?{x,y}:documentPoint(x,y,host);
+    const parent=from==="layer"?inverseDocumentPoint(doc,host):doc,p=inverseDocumentPoint(parent,maskTr),ix=Math.round(p.x),iy=Math.round(p.y);
+    if(ix<0||iy<0||ix>=w||iy>=h)continue;
+    const si=(iy*w+ix)*4,di=(y*w+x)*4;
+    d[di]=s[si];d[di+1]=s[si+1];d[di+2]=s[si+2];d[di+3]=s[si+3];
+  }
+  return out;
+}
 const adjustedLightness=(value:number,amount:number)=>{const a=clamp(amount/100,-1,1);return a<0?value*(1+a):value+(1-value)*a;};
 const INF=1e20;
 function edt1d(grid:Float64Array,offset:number,stride:number,length:number,f:Float64Array,v:Int32Array,z:Float64Array){

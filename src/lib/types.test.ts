@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createEffect, processPixels } from "./effects";
+import { createEffect, processPixels, applyMaskLuminance, rebakeMaskData } from "./effects";
 import { migrateDocument, prepareExportDocument } from "./project";
-import { documentPixels, fitImportScale, newDocument, newLayer, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources } from "./types";
+import { documentPixels, fitImportScale, newDocument, newLayer, pixelBox, pixelLine, snapLine, snapSquare, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources } from "./types";
 
 if (!(globalThis as {ImageData?:unknown}).ImageData) (globalThis as {ImageData:unknown}).ImageData=class { data:Uint8ClampedArray;width:number;height:number;constructor(data:Uint8ClampedArray,width:number,height:number){this.data=data;this.width=width;this.height=height} };
 
@@ -15,6 +15,29 @@ describe("import fit", () => {
     expect(fitImportScale(2000,500,800,800)).toBe(1);
     expect(fitImportScale(2000,2000,800,800)).toBe(0.4);
     expect(fitImportScale(1600,2000,800,800)).toBe(0.4);
+  });
+});
+describe("pixel box", () => {
+  it("rounds to a hard integer rectangle", () => {
+    expect(pixelBox(0.4, 0.6, 10.4, 4.4)).toEqual({x:0,y:1,w:10,h:3});
+    expect(pixelBox(5, 5, 5, 5)).toEqual({x:5,y:5,w:1,h:1});
+  });
+});
+describe("shape snap", () => {
+  const o={x:0,y:0};
+  it("snaps lines to 90 or 45 degrees", () => {
+    expect(snapLine(o,{x:10,y:1})).toEqual({x:10,y:0});
+    expect(snapLine(o,{x:1,y:10})).toEqual({x:0,y:10});
+    expect(snapLine(o,{x:10,y:9})).toEqual({x:10,y:10});
+    expect(snapLine(o,{x:-8,y:2})).toEqual({x:-8,y:0});
+  });
+  it("snaps rects to a square", () => {
+    expect(snapSquare(o,{x:10,y:4})).toEqual({x:10,y:10});
+    expect(snapSquare(o,{x:-3,y:8})).toEqual({x:-8,y:8});
+  });
+  it("walks a Bresenham pixel line", () => {
+    expect(pixelLine(0,0,3,0)).toEqual([{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0}]);
+    expect(pixelLine(0,0,2,2)).toEqual([{x:0,y:0},{x:1,y:1},{x:2,y:2}]);
   });
 });
 describe("scale around anchor", () => {
@@ -52,10 +75,36 @@ describe("contour",()=>{
   });
 });
 describe("project migration",()=>{
-  it("maps v1 color effects and removes legacy halftone parameters",()=>{const old=newDocument() as unknown as {version:number;layers:Array<{effects:Array<Record<string,unknown>>}>};old.version=1;old.layers[0].effects=[{id:"a",type:"colorize",version:1,enabled:true,params:{color:"#fff",strength:1}},{id:"b",type:"halftone",version:1,enabled:true,params:{dot:2,spacingX:1,spacingY:1,stagger:false,angle:20,offsetX:3}}];const migrated=migrateDocument(old);expect(migrated.version).toBe(3);expect(migrated.layers[0].effects[0].type).toBe("replaceColor");expect(migrated.layers[0].effects[1].params).toEqual({dot:2,spacingX:1,spacingY:1,stagger:false});});
-  it("promotes v2 documents and flattens dangling links",()=>{const old=newDocument();(old as {version:number}).version=2;const ghost=newLayer("ghost");ghost.linkSourceId="missing";const chain=newLayer("chain");chain.linkSourceId=old.layers[0].id;old.layers.push(ghost,chain);const migrated=migrateDocument(old);expect(migrated.version).toBe(3);expect(migrated.layers[1].linkSourceId).toBeUndefined();expect(migrated.layers[2].linkSourceId).toBe(old.layers[0].id);});
-  it("rejects newer project versions",()=>{const old=newDocument() as {version:number};old.version=4;expect(()=>migrateDocument(old)).toThrow(/Unsupported/);});
+  it("maps v1 color effects and removes legacy halftone parameters",()=>{const old=newDocument() as unknown as {version:number;layers:Array<{effects:Array<Record<string,unknown>>}>};old.version=1;old.layers[0].effects=[{id:"a",type:"colorize",version:1,enabled:true,params:{color:"#fff",strength:1}},{id:"b",type:"halftone",version:1,enabled:true,params:{dot:2,spacingX:1,spacingY:1,stagger:false,angle:20,offsetX:3}}];const migrated=migrateDocument(old);expect(migrated.version).toBe(4);expect(migrated.layers[0].effects[0].type).toBe("replaceColor");expect(migrated.layers[0].effects[1].params).toEqual({dot:2,spacingX:1,spacingY:1,linkSpacing:true,stagger:false});});
+  it("keeps unequal halftone spacing unlinked",()=>{const old=newDocument() as unknown as {version:number;layers:Array<{effects:Array<Record<string,unknown>>}>};old.version=2;old.layers[0].effects=[{id:"h",type:"halftone",version:2,enabled:true,params:{dot:2,spacingX:1,spacingY:4,stagger:false}}];expect(migrateDocument(old).layers[0].effects[0].params.linkSpacing).toBe(false);});
+  it("promotes v2 documents and flattens dangling links",()=>{const old=newDocument();(old as {version:number}).version=2;const ghost=newLayer("ghost");ghost.linkSourceId="missing";const chain=newLayer("chain");chain.linkSourceId=old.layers[0].id;old.layers.push(ghost,chain);const migrated=migrateDocument(old);expect(migrated.version).toBe(4);expect(migrated.layers[1].linkSourceId).toBeUndefined();expect(migrated.layers[2].linkSourceId).toBe(old.layers[0].id);});
+  it("rejects newer project versions",()=>{const old=newDocument() as {version:number};old.version=5;expect(()=>migrateDocument(old)).toThrow(/Unsupported/);});
   it("omits instance bitmaps from exported documents",()=>{const document=newDocument();const inst=newLayer("inst");inst.linkSourceId=document.layers[0].id;inst.bitmap="data:image/png;base64,xxx";inst.assetId="asset";document.layers.push(inst);const exported=prepareExportDocument(document);expect(exported.layers[1].linkSourceId).toBe(document.layers[0].id);expect(exported.layers[1].bitmap).toBeUndefined();expect(exported.layers[1].assetId).toBeUndefined();expect(document.layers[1].bitmap).toBe("data:image/png;base64,xxx");});
+  it("promotes v3 documents without adding masks",()=>{const old=newDocument();(old as {version:number}).version=3;const migrated=migrateDocument(old);expect(migrated.version).toBe(4);expect(migrated.layers[0].mask).toBeUndefined();});
+});
+describe("layer masks",()=>{
+  const pixel=(w:number,x:number,y:number,r=0,g=0,b=0,a=255)=>{const d=new Uint8ClampedArray(w*w*4);d[(y*w+x)*4]=r;d[(y*w+x)*4+1]=g;d[(y*w+x)*4+2]=b;d[(y*w+x)*4+3]=a;return new ImageData(d,w,w);};
+  it("hides by mask luminance: black shows, white covers",()=>{
+    const source=new ImageData(new Uint8ClampedArray([10,20,30,200,1,2,3,100,9,9,9,255]),3,1);
+    const mask=new ImageData(new Uint8ClampedArray([0,0,0,255,255,255,255,255,128,128,128,255]),3,1);
+    const out=applyMaskLuminance(source,mask);
+    expect([...out.data.slice(0,4)]).toEqual([10,20,30,200]);
+    expect([...out.data.slice(4,8)]).toEqual([1,2,3,0]);
+    expect(out.data[11]).toBe(127);
+  });
+  it("rebakes a translated layer mask into the same canvas pixels",()=>{
+    const mask=pixel(4,1,1,255,255,255,255),tr={x:2,y:0,scaleX:1,scaleY:1,rotation:0};
+    const canvas=rebakeMaskData(mask,tr,"layer","canvas");
+    expect(canvas.data[(1*4+3)*4+3]).toBe(255);
+    expect(canvas.data[(1*4+1)*4+3]).toBe(0);
+    const back=rebakeMaskData(canvas,tr,"canvas","layer");
+    expect(back.data[(1*4+1)*4+3]).toBe(255);
+  });
+  it("bakes mask transform when switching space",()=>{
+    const mask=pixel(4,1,1,255,255,255,255),host={x:1,y:0,scaleX:1,scaleY:1,rotation:0},local={x:1,y:0,scaleX:1,scaleY:1,rotation:0};
+    const canvas=rebakeMaskData(mask,host,"layer","canvas",local);
+    expect(canvas.data[(1*4+3)*4+3]).toBe(255);
+  });
 });
 describe("layer links",()=>{
   it("resolves through a chain to the content owner",()=>{
