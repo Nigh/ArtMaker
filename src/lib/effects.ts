@@ -30,9 +30,9 @@ const gradientAt=(p:Record<string,number|string|boolean>,x:number,y:number,b:{mi
 const matchWeight=(rgb:number[],target:number[],tolerance:number,softness:number)=>{const distance=Math.hypot(rgb[0]-target[0],rgb[1]-target[1],rgb[2]-target[2])/Math.sqrt(3*255*255)*100,edge=Math.max(0.001,softness);return tolerance>=100?1:1-clamp((distance-tolerance)/edge);};
 export const documentPoint=(x:number,y:number,tr?:Transform)=>{if(!tr)return{x,y};const sx=x*tr.scaleX,sy=y*tr.scaleY,a=tr.rotation*Math.PI/180;return{x:sx*Math.cos(a)-sy*Math.sin(a)+tr.x,y:sx*Math.sin(a)+sy*Math.cos(a)+tr.y};};
 export const inverseDocumentPoint=(p:{x:number;y:number},tr:Transform)=>{const a=-tr.rotation*Math.PI/180,dx=p.x-tr.x,dy=p.y-tr.y;return{x:(dx*Math.cos(a)-dy*Math.sin(a))/tr.scaleX,y:(dx*Math.sin(a)+dy*Math.cos(a))/tr.scaleY};};
-export function multiplyAlpha(source:ImageData,mask:ImageData):ImageData{
+export function applyMaskLuminance(source:ImageData,mask:ImageData):ImageData{
   const out=new ImageData(new Uint8ClampedArray(source.data),source.width,source.height),d=out.data,m=mask.data,n=Math.min(d.length,m.length);
-  for(let i=3;i<n;i+=4)d[i]=d[i]*m[i]/255;
+  for(let i=0;i<n;i+=4){const cover=(m[i]*.2126+m[i+1]*.7152+m[i+2]*.0722)/255*(m[i+3]/255);d[i+3]=d[i+3]*(1-cover);}
   return out;
 }
 export function rebakeMaskData(src:ImageData,tr:Transform,from:MaskSpace,to:MaskSpace):ImageData{

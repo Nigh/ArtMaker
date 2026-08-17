@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createEffect, processPixels, multiplyAlpha, rebakeMaskData } from "./effects";
+import { createEffect, processPixels, applyMaskLuminance, rebakeMaskData } from "./effects";
 import { migrateDocument, prepareExportDocument } from "./project";
-import { documentPixels, fitImportScale, newDocument, newLayer, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources } from "./types";
+import { documentPixels, fitImportScale, newDocument, newLayer, pixelBox, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources } from "./types";
 
 if (!(globalThis as {ImageData?:unknown}).ImageData) (globalThis as {ImageData:unknown}).ImageData=class { data:Uint8ClampedArray;width:number;height:number;constructor(data:Uint8ClampedArray,width:number,height:number){this.data=data;this.width=width;this.height=height} };
 
@@ -15,6 +15,12 @@ describe("import fit", () => {
     expect(fitImportScale(2000,500,800,800)).toBe(1);
     expect(fitImportScale(2000,2000,800,800)).toBe(0.4);
     expect(fitImportScale(1600,2000,800,800)).toBe(0.4);
+  });
+});
+describe("pixel box", () => {
+  it("rounds to a hard integer rectangle", () => {
+    expect(pixelBox(0.4, 0.6, 10.4, 4.4)).toEqual({x:0,y:1,w:10,h:3});
+    expect(pixelBox(5, 5, 5, 5)).toEqual({x:5,y:5,w:1,h:1});
   });
 });
 describe("scale around anchor", () => {
@@ -61,10 +67,13 @@ describe("project migration",()=>{
 });
 describe("layer masks",()=>{
   const pixel=(w:number,x:number,y:number,r=0,g=0,b=0,a=255)=>{const d=new Uint8ClampedArray(w*w*4);d[(y*w+x)*4]=r;d[(y*w+x)*4+1]=g;d[(y*w+x)*4+2]=b;d[(y*w+x)*4+3]=a;return new ImageData(d,w,w);};
-  it("multiplies source alpha by mask alpha and keeps rgb",()=>{
-    const source=new ImageData(new Uint8ClampedArray([10,20,30,200,1,2,3,100]),2,1);
-    const mask=new ImageData(new Uint8ClampedArray([0,0,0,128,0,0,0,0]),2,1);
-    expect([...multiplyAlpha(source,mask).data]).toEqual([10,20,30,100,1,2,3,0]);
+  it("hides by mask luminance: black shows, white covers",()=>{
+    const source=new ImageData(new Uint8ClampedArray([10,20,30,200,1,2,3,100,9,9,9,255]),3,1);
+    const mask=new ImageData(new Uint8ClampedArray([0,0,0,255,255,255,255,255,128,128,128,255]),3,1);
+    const out=applyMaskLuminance(source,mask);
+    expect([...out.data.slice(0,4)]).toEqual([10,20,30,200]);
+    expect([...out.data.slice(4,8)]).toEqual([1,2,3,0]);
+    expect(out.data[11]).toBe(127);
   });
   it("rebakes a translated layer mask into the same canvas pixels",()=>{
     const mask=pixel(4,1,1,255,255,255,255),tr={x:2,y:0,scaleX:1,scaleY:1,rotation:0};

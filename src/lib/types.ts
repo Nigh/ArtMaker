@@ -28,6 +28,11 @@ export interface ArtMakerDocument {
 
 export const DOCUMENT_VERSION = 4;
 export const PIXEL_TOOLS: ReadonlySet<Tool> = new Set(["brush", "eraser", "line", "rect", "ellipse", "fill"]);
+export const SHAPE_TOOLS: ReadonlySet<Tool> = new Set(["line", "rect", "ellipse"]);
+export function pixelBox(x0: number, y0: number, x1: number, y1: number) {
+  const x = Math.round(Math.min(x0, x1)), y = Math.round(Math.min(y0, y1));
+  return { x, y, w: Math.max(1, Math.round(Math.max(x0, x1)) - x), h: Math.max(1, Math.round(Math.max(y0, y1)) - y) };
+}
 
 export const uid = () => crypto.randomUUID();
 export const defaultSpec = (): DocumentSpec => ({ unit: "mm", dpi: 300, width: 64, height: 89, bleed: { top: 3, right: 3, bottom: 3, left: 3 }, safeMargin: 3 });
