@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createEffect, processPixels } from "./effects";
-import { migrateDocument } from "./project";
-import { documentPixels, fitImportScale, newDocument, scaleAround, toPixels } from "./types";
+import { migrateDocument, prepareExportDocument } from "./project";
+import { documentPixels, fitImportScale, newDocument, newLayer, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources } from "./types";
 
 if (!(globalThis as {ImageData?:unknown}).ImageData) (globalThis as {ImageData:unknown}).ImageData=class { data:Uint8ClampedArray;width:number;height:number;constructor(data:Uint8ClampedArray,width:number,height:number){this.data=data;this.width=width;this.height=height} };
 
@@ -51,4 +51,28 @@ describe("contour",()=>{
     const hit=alphas.findIndex(a=>a>200);expect(result.data[hit*4]).toBeGreaterThan(200);expect(result.data[hit*4+1]).toBeLessThan(20);
   });
 });
-describe("project migration",()=>{it("maps v1 color effects and removes legacy halftone parameters",()=>{const old=newDocument() as unknown as {version:number;layers:Array<{effects:Array<Record<string,unknown>>}>};old.version=1;old.layers[0].effects=[{id:"a",type:"colorize",version:1,enabled:true,params:{color:"#fff",strength:1}},{id:"b",type:"halftone",version:1,enabled:true,params:{dot:2,spacingX:1,spacingY:1,stagger:false,angle:20,offsetX:3}}];const migrated=migrateDocument(old);expect(migrated.version).toBe(2);expect(migrated.layers[0].effects[0].type).toBe("replaceColor");expect(migrated.layers[0].effects[1].params).toEqual({dot:2,spacingX:1,spacingY:1,stagger:false});});});
+describe("project migration",()=>{
+  it("maps v1 color effects and removes legacy halftone parameters",()=>{const old=newDocument() as unknown as {version:number;layers:Array<{effects:Array<Record<string,unknown>>}>};old.version=1;old.layers[0].effects=[{id:"a",type:"colorize",version:1,enabled:true,params:{color:"#fff",strength:1}},{id:"b",type:"halftone",version:1,enabled:true,params:{dot:2,spacingX:1,spacingY:1,stagger:false,angle:20,offsetX:3}}];const migrated=migrateDocument(old);expect(migrated.version).toBe(3);expect(migrated.layers[0].effects[0].type).toBe("replaceColor");expect(migrated.layers[0].effects[1].params).toEqual({dot:2,spacingX:1,spacingY:1,stagger:false});});
+  it("promotes v2 documents and flattens dangling links",()=>{const old=newDocument();(old as {version:number}).version=2;const ghost=newLayer("ghost");ghost.linkSourceId="missing";const chain=newLayer("chain");chain.linkSourceId=old.layers[0].id;old.layers.push(ghost,chain);const migrated=migrateDocument(old);expect(migrated.version).toBe(3);expect(migrated.layers[1].linkSourceId).toBeUndefined();expect(migrated.layers[2].linkSourceId).toBe(old.layers[0].id);});
+  it("rejects newer project versions",()=>{const old=newDocument() as {version:number};old.version=4;expect(()=>migrateDocument(old)).toThrow(/Unsupported/);});
+  it("omits instance bitmaps from exported documents",()=>{const document=newDocument();const inst=newLayer("inst");inst.linkSourceId=document.layers[0].id;inst.bitmap="data:image/png;base64,xxx";inst.assetId="asset";document.layers.push(inst);const exported=prepareExportDocument(document);expect(exported.layers[1].linkSourceId).toBe(document.layers[0].id);expect(exported.layers[1].bitmap).toBeUndefined();expect(exported.layers[1].assetId).toBeUndefined();expect(document.layers[1].bitmap).toBe("data:image/png;base64,xxx");});
+});
+describe("layer links",()=>{
+  it("resolves through a chain to the content owner",()=>{
+    const a=newLayer("A"),b=newLayer("B"),c=newLayer("C");a.linkSourceId=b.id;b.linkSourceId=c.id;
+    expect(contentOwnerId([a,b,c],a)).toBe(c.id);
+    flattenLayerLinks([a,b,c]);
+    expect(a.linkSourceId).toBe(c.id);expect(b.linkSourceId).toBe(c.id);
+  });
+  it("treats a missing or cyclic target as unlinked",()=>{
+    const a=newLayer("A"),b=newLayer("B");a.linkSourceId="missing";b.linkSourceId=b.id;
+    expect(contentOwnerId([a,b],a)).toBe(a.id);expect(contentOwnerId([a,b],b)).toBe(b.id);
+    flattenLayerLinks([a,b]);expect(a.linkSourceId).toBeUndefined();expect(b.linkSourceId).toBeUndefined();
+  });
+  it("lists dependents and only unlinked layers as link targets",()=>{
+    const a=newLayer("A"),b=newLayer("B"),c=newLayer("C");c.linkSourceId=a.id;
+    expect(linkDependents([a,b,c],a.id).map(l=>l.id)).toEqual([c.id]);
+    expect(linkableSources([a,b,c],c.id).map(l=>l.id)).toEqual([a.id,b.id]);
+    expect(linkableSources([a,b,c],a.id).map(l=>l.id)).toEqual([b.id]);
+  });
+});
