@@ -41,3 +41,4 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - Colorize takes hue and saturation from its configured color and lightness from the Rec.709 grayscale source after the lightness adjustment.
 - When changing serialized document structures, add an explicit migration and update round-trip tests.
 - Keep canvas interactions pixel-perfect at zoom levels of 100% and above.
+- Square brush stamps an integer-pixel hard rectangle; round brush uses hardness.
