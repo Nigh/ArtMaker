@@ -1,4 +1,4 @@
-import type { EffectType, LayerEffect, Transform } from "./types";
+import type { EffectType, LayerEffect, MaskSpace, Transform } from "./types";
 import { uid } from "./types";
 
 export interface EffectDefinition { type: EffectType; label: { "zh-CN": string; en: string }; defaults: Record<string, number | string | boolean> }
@@ -29,6 +29,24 @@ export const bounds=(d:Uint8ClampedArray,w:number,h:number)=>{let minX=w,minY=h,
 const gradientAt=(p:Record<string,number|string|boolean>,x:number,y:number,b:{minX:number;minY:number;w:number;h:number})=>{const a=rgbToHsl(hex(String(p.from))),z=rgbToHsl(hex(String(p.to))),nx=(x-b.minX)/b.w,ny=(y-b.minY)/b.h,dir=String(p.direction??"horizontal"),t=dir==="vertical"?ny:dir==="diagonal-down"?(nx+ny)/2:dir==="diagonal-up"?(nx+1-ny)/2:nx,delta=((z[0]-a[0]+540)%360)-180;return[(a[0]+delta*t+360)%360,a[1]+(z[1]-a[1])*t];};
 const matchWeight=(rgb:number[],target:number[],tolerance:number,softness:number)=>{const distance=Math.hypot(rgb[0]-target[0],rgb[1]-target[1],rgb[2]-target[2])/Math.sqrt(3*255*255)*100,edge=Math.max(0.001,softness);return tolerance>=100?1:1-clamp((distance-tolerance)/edge);};
 export const documentPoint=(x:number,y:number,tr?:Transform)=>{if(!tr)return{x,y};const sx=x*tr.scaleX,sy=y*tr.scaleY,a=tr.rotation*Math.PI/180;return{x:sx*Math.cos(a)-sy*Math.sin(a)+tr.x,y:sx*Math.sin(a)+sy*Math.cos(a)+tr.y};};
+export const inverseDocumentPoint=(p:{x:number;y:number},tr:Transform)=>{const a=-tr.rotation*Math.PI/180,dx=p.x-tr.x,dy=p.y-tr.y;return{x:(dx*Math.cos(a)-dy*Math.sin(a))/tr.scaleX,y:(dx*Math.sin(a)+dy*Math.cos(a))/tr.scaleY};};
+export function multiplyAlpha(source:ImageData,mask:ImageData):ImageData{
+  const out=new ImageData(new Uint8ClampedArray(source.data),source.width,source.height),d=out.data,m=mask.data,n=Math.min(d.length,m.length);
+  for(let i=3;i<n;i+=4)d[i]=d[i]*m[i]/255;
+  return out;
+}
+export function rebakeMaskData(src:ImageData,tr:Transform,from:MaskSpace,to:MaskSpace):ImageData{
+  const out=new ImageData(new Uint8ClampedArray(src.width*src.height*4),src.width,src.height);
+  if(from===to){out.data.set(src.data);return out;}
+  const s=src.data,d=out.data,w=src.width,h=src.height;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const p=from==="layer"?inverseDocumentPoint({x,y},tr):documentPoint(x,y,tr),ix=Math.round(p.x),iy=Math.round(p.y);
+    if(ix<0||iy<0||ix>=w||iy>=h)continue;
+    const si=(iy*w+ix)*4,di=(y*w+x)*4;
+    d[di]=s[si];d[di+1]=s[si+1];d[di+2]=s[si+2];d[di+3]=s[si+3];
+  }
+  return out;
+}
 const adjustedLightness=(value:number,amount:number)=>{const a=clamp(amount/100,-1,1);return a<0?value*(1+a):value+(1-value)*a;};
 const INF=1e20;
 function edt1d(grid:Float64Array,offset:number,stride:number,length:number,f:Float64Array,v:Int32Array,z:Float64Array){

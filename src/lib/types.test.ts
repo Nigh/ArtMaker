@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createEffect, processPixels } from "./effects";
+import { createEffect, processPixels, multiplyAlpha, rebakeMaskData } from "./effects";
 import { migrateDocument, prepareExportDocument } from "./project";
 import { documentPixels, fitImportScale, newDocument, newLayer, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources } from "./types";
 
@@ -52,11 +52,28 @@ describe("contour",()=>{
   });
 });
 describe("project migration",()=>{
-  it("maps v1 color effects and removes legacy halftone parameters",()=>{const old=newDocument() as unknown as {version:number;layers:Array<{effects:Array<Record<string,unknown>>}>};old.version=1;old.layers[0].effects=[{id:"a",type:"colorize",version:1,enabled:true,params:{color:"#fff",strength:1}},{id:"b",type:"halftone",version:1,enabled:true,params:{dot:2,spacingX:1,spacingY:1,stagger:false,angle:20,offsetX:3}}];const migrated=migrateDocument(old);expect(migrated.version).toBe(3);expect(migrated.layers[0].effects[0].type).toBe("replaceColor");expect(migrated.layers[0].effects[1].params).toEqual({dot:2,spacingX:1,spacingY:1,linkSpacing:true,stagger:false});});
+  it("maps v1 color effects and removes legacy halftone parameters",()=>{const old=newDocument() as unknown as {version:number;layers:Array<{effects:Array<Record<string,unknown>>}>};old.version=1;old.layers[0].effects=[{id:"a",type:"colorize",version:1,enabled:true,params:{color:"#fff",strength:1}},{id:"b",type:"halftone",version:1,enabled:true,params:{dot:2,spacingX:1,spacingY:1,stagger:false,angle:20,offsetX:3}}];const migrated=migrateDocument(old);expect(migrated.version).toBe(4);expect(migrated.layers[0].effects[0].type).toBe("replaceColor");expect(migrated.layers[0].effects[1].params).toEqual({dot:2,spacingX:1,spacingY:1,linkSpacing:true,stagger:false});});
   it("keeps unequal halftone spacing unlinked",()=>{const old=newDocument() as unknown as {version:number;layers:Array<{effects:Array<Record<string,unknown>>}>};old.version=2;old.layers[0].effects=[{id:"h",type:"halftone",version:2,enabled:true,params:{dot:2,spacingX:1,spacingY:4,stagger:false}}];expect(migrateDocument(old).layers[0].effects[0].params.linkSpacing).toBe(false);});
-  it("promotes v2 documents and flattens dangling links",()=>{const old=newDocument();(old as {version:number}).version=2;const ghost=newLayer("ghost");ghost.linkSourceId="missing";const chain=newLayer("chain");chain.linkSourceId=old.layers[0].id;old.layers.push(ghost,chain);const migrated=migrateDocument(old);expect(migrated.version).toBe(3);expect(migrated.layers[1].linkSourceId).toBeUndefined();expect(migrated.layers[2].linkSourceId).toBe(old.layers[0].id);});
-  it("rejects newer project versions",()=>{const old=newDocument() as {version:number};old.version=4;expect(()=>migrateDocument(old)).toThrow(/Unsupported/);});
+  it("promotes v2 documents and flattens dangling links",()=>{const old=newDocument();(old as {version:number}).version=2;const ghost=newLayer("ghost");ghost.linkSourceId="missing";const chain=newLayer("chain");chain.linkSourceId=old.layers[0].id;old.layers.push(ghost,chain);const migrated=migrateDocument(old);expect(migrated.version).toBe(4);expect(migrated.layers[1].linkSourceId).toBeUndefined();expect(migrated.layers[2].linkSourceId).toBe(old.layers[0].id);});
+  it("rejects newer project versions",()=>{const old=newDocument() as {version:number};old.version=5;expect(()=>migrateDocument(old)).toThrow(/Unsupported/);});
   it("omits instance bitmaps from exported documents",()=>{const document=newDocument();const inst=newLayer("inst");inst.linkSourceId=document.layers[0].id;inst.bitmap="data:image/png;base64,xxx";inst.assetId="asset";document.layers.push(inst);const exported=prepareExportDocument(document);expect(exported.layers[1].linkSourceId).toBe(document.layers[0].id);expect(exported.layers[1].bitmap).toBeUndefined();expect(exported.layers[1].assetId).toBeUndefined();expect(document.layers[1].bitmap).toBe("data:image/png;base64,xxx");});
+  it("promotes v3 documents without adding masks",()=>{const old=newDocument();(old as {version:number}).version=3;const migrated=migrateDocument(old);expect(migrated.version).toBe(4);expect(migrated.layers[0].mask).toBeUndefined();});
+});
+describe("layer masks",()=>{
+  const pixel=(w:number,x:number,y:number,r=0,g=0,b=0,a=255)=>{const d=new Uint8ClampedArray(w*w*4);d[(y*w+x)*4]=r;d[(y*w+x)*4+1]=g;d[(y*w+x)*4+2]=b;d[(y*w+x)*4+3]=a;return new ImageData(d,w,w);};
+  it("multiplies source alpha by mask alpha and keeps rgb",()=>{
+    const source=new ImageData(new Uint8ClampedArray([10,20,30,200,1,2,3,100]),2,1);
+    const mask=new ImageData(new Uint8ClampedArray([0,0,0,128,0,0,0,0]),2,1);
+    expect([...multiplyAlpha(source,mask).data]).toEqual([10,20,30,100,1,2,3,0]);
+  });
+  it("rebakes a translated layer mask into the same canvas pixels",()=>{
+    const mask=pixel(4,1,1,255,255,255,255),tr={x:2,y:0,scaleX:1,scaleY:1,rotation:0};
+    const canvas=rebakeMaskData(mask,tr,"layer","canvas");
+    expect(canvas.data[(1*4+3)*4+3]).toBe(255);
+    expect(canvas.data[(1*4+1)*4+3]).toBe(0);
+    const back=rebakeMaskData(canvas,tr,"canvas","layer");
+    expect(back.data[(1*4+1)*4+3]).toBe(255);
+  });
 });
 describe("layer links",()=>{
   it("resolves through a chain to the content owner",()=>{

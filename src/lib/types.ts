@@ -10,19 +10,23 @@ export type EffectType = "colorize" | "gradientColorize" | "replaceColor" | "gra
 export interface LayerEffect { id: string; type: EffectType; version: 2; enabled: boolean; params: Record<string, number | string | boolean> }
 export interface SourceAsset { id: string; name: string; mime: string; width: number; height: number; checksum: string; bytes: Blob }
 
+export type MaskSpace = "layer" | "canvas";
+export interface LayerMask { space: MaskSpace; enabled: boolean; bitmap?: string }
+
 export interface ArtLayer {
   id: string; name: string; type: "paint" | "image" | "text" | "group"; visible: boolean; locked: boolean;
   opacity: number; blendMode: BlendMode; transform: Transform; effects: LayerEffect[]; assetId?: string;
   linkSourceId?: string; bitmap?: string; text?: string; font?: string; fontSize?: number; color?: string; children?: ArtLayer[];
+  mask?: LayerMask;
 }
 
 export interface ArtMakerDocument {
-  format: "artmaker"; version: 3; id: string; name: string; locale: "zh-CN" | "en";
+  format: "artmaker"; version: 4; id: string; name: string; locale: "zh-CN" | "en";
   createdAt: string; updatedAt: string; spec: DocumentSpec; layers: ArtLayer[]; activeLayerId?: string;
   background: string | null;
 }
 
-export const DOCUMENT_VERSION = 3;
+export const DOCUMENT_VERSION = 4;
 export const PIXEL_TOOLS: ReadonlySet<Tool> = new Set(["brush", "eraser", "line", "rect", "ellipse", "fill"]);
 
 export const uid = () => crypto.randomUUID();
