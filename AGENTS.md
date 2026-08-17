@@ -25,6 +25,7 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 ## Invariants
 
 - Convert physical dimensions to pixels with the document DPI and include all four bleed edges.
+- New documents default to 64×89 mm at 300 DPI with 3 mm bleed on each edge.
 - Preserve imported image originals. Never replace source bytes with a transformed or resampled copy.
 - Transform raw layer content into document space before applying its effect stack.
 - Convert document-space pointer coordinates through the active layer's inverse transform before editing its raw pixels.
