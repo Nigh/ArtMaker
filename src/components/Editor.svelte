@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import { createEffect, effectRegistry, processPixels } from "../lib/effects";
-  import { documentPixels, newDocument, newLayer, toPixels, uid, type ArtLayer, type ArtMakerDocument, type EffectType, type SourceAsset, type Tool } from "../lib/types";
+  import { documentPixels, fitImportScale, newDocument, newLayer, toPixels, uid, type ArtLayer, type ArtMakerDocument, type EffectType, type SourceAsset, type Tool } from "../lib/types";
   import { download, exportProject, importProject, loadAutosave, saveAutosave } from "../lib/project";
 
   let locale: "zh-CN"|"en" = "zh-CN", doc: ArtMakerDocument = newDocument(locale), assets = new Map<string,SourceAsset>();
@@ -12,6 +12,7 @@
   let status="", showSettings=false, showEffects=false, history:string[] = [], future:string[]=[];
   let pickingEffectId:string|null=null;
   let settingsOriginal:ArtMakerDocument["spec"]|null=null;
+  let fileDrop=false;
   const zh:Record<string,string>={new:"新建",open:"打开",save:"保存项目",export:"导出 PNG",undo:"撤销",redo:"重做",import:"导入图片",settings:"文档设置",layers:"图层",effects:"特效",addLayer:"新建图层",addText:"文字",duplicate:"复制",remove:"删除",width:"成品宽",height:"成品高",dpi:"DPI",bleed:"出血",safe:"安全区",pixel:"画布像素",opacity:"不透明度",blend:"混合",empty:"选择图层后添加效果",restore:"已恢复自动保存",saved:"已自动保存",lang:"EN",theme:"主题",trim:"成品",safeGuide:"安全区",color:"颜色",size:"尺寸",hardness:"硬度",unit:"单位",name:"名称",scale:"缩放",cancel:"取消",apply:"应用",bleedTop:"上",bleedRight:"右",bleedBottom:"下",bleedLeft:"左",selectHint:"拖动以移动图层",eyedropperHint:"点击画布取色",pickColor:"从画布取色"};
   const en:Record<string,string>={new:"New",open:"Open",save:"Save project",export:"Export PNG",undo:"Undo",redo:"Redo",import:"Import image",settings:"Document settings",layers:"Layers",effects:"Effects",addLayer:"New layer",addText:"Text",duplicate:"Duplicate",remove:"Delete",width:"Trim width",height:"Trim height",dpi:"DPI",bleed:"Bleed",safe:"Safe area",pixel:"Canvas pixels",opacity:"Opacity",blend:"Blend",empty:"Select a layer to add effects",restore:"Autosave restored",saved:"Autosaved",lang:"中文",theme:"Theme",trim:"TRIM",safeGuide:"SAFE",color:"Color",size:"Size",hardness:"Hardness",unit:"Unit",name:"Name",scale:"Scale",cancel:"Cancel",apply:"Apply",bleedTop:"Top",bleedRight:"Right",bleedBottom:"Bottom",bleedLeft:"Left",selectHint:"Drag to move the layer",eyedropperHint:"Click the canvas to sample a color",pickColor:"Pick from canvas"};
   const t=(key:string)=>(locale==="zh-CN"?zh:en)[key]??key;
@@ -54,7 +55,11 @@
   function setLayerScale(event:Event){if(!active)return;const scale=Math.max(.01,Number((event.target as HTMLInputElement).value)/100);active.transform.scaleX=scale;active.transform.scaleY=scale;doc={...doc,layers:[...doc.layers]};renderDocument();queueSave();}
   function openSettings(){settingsOriginal=structuredClone(doc.spec);showSettings=true;}
   async function cancelSettings(){if(settingsOriginal)doc={...doc,spec:settingsOriginal};showSettings=false;await tick();setupCanvas();}
-  async function importImage(event:Event){const file=(event.target as HTMLInputElement).files?.[0];if(!file)return;const bitmap=await createImageBitmap(file);const bytes=await file.arrayBuffer(),hash=await crypto.subtle.digest("SHA-256",bytes),id=uid();const checksum=[...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,"0")).join("");assets.set(id,{id,name:file.name,mime:file.type,width:bitmap.width,height:bitmap.height,checksum,bytes:file});const layer=newLayer(file.name);layer.type="image";layer.assetId=id;doc={...doc,layers:[layer,...doc.layers],activeLayerId:layer.id};const scale=Math.min(px.width/bitmap.width,px.height/bitmap.height,.9),b=bufferFor(layer);b.getContext("2d")!.drawImage(bitmap,(px.width-bitmap.width*scale)/2,(px.height-bitmap.height*scale)/2,bitmap.width*scale,bitmap.height*scale);layer.bitmap=b.toDataURL();commit();}
+  async function importImageFile(file:File){if(!file.type.startsWith("image/"))return;const bitmap=await createImageBitmap(file);const bytes=await file.arrayBuffer(),hash=await crypto.subtle.digest("SHA-256",bytes),id=uid();const checksum=[...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,"0")).join("");assets.set(id,{id,name:file.name,mime:file.type,width:bitmap.width,height:bitmap.height,checksum,bytes:file});const layer=newLayer(file.name);layer.type="image";layer.assetId=id;doc={...doc,layers:[layer,...doc.layers],activeLayerId:layer.id};const scale=fitImportScale(bitmap.width,bitmap.height,px.width,px.height),b=bufferFor(layer);b.getContext("2d")!.drawImage(bitmap,(px.width-bitmap.width*scale)/2,(px.height-bitmap.height*scale)/2,bitmap.width*scale,bitmap.height*scale);layer.bitmap=b.toDataURL();commit();}
+  async function importImage(event:Event){const input=event.target as HTMLInputElement,file=input.files?.[0];if(file)await importImageFile(file);input.value="";}
+  function onFileDragOver(e:DragEvent){if(!e.dataTransfer?.types.includes("Files"))return;e.preventDefault();e.dataTransfer.dropEffect="copy";fileDrop=true;}
+  function onFileDragLeave(e:DragEvent){const next=e.relatedTarget as Node|null;if(!next||!(e.currentTarget as Node).contains(next))fileDrop=false;}
+  async function onFileDrop(e:DragEvent){fileDrop=false;const files=[...e.dataTransfer?.files??[]].filter(f=>f.type.startsWith("image/"));if(!files.length)return;e.preventDefault();for(const file of files.reverse())await importImageFile(file);}
   function addEffect(type:EffectType){if(!active)return;active.effects=[...active.effects,createEffect(type)];doc={...doc,layers:[...doc.layers]};applyEffects();}
   async function applyEffects(){renderDocument();queueSave();}
   function moveEffect(index:number,delta:number){if(!active)return;const n=index+delta;if(n<0||n>=active.effects.length)return;[active.effects[index],active.effects[n]]=[active.effects[n],active.effects[index]];active.effects=[...active.effects];doc={...doc,layers:[...doc.layers]};applyEffects();}
@@ -74,7 +79,7 @@
 
 <svelte:window onkeydown={(e)=>{if(e.key==="Escape")pickingEffectId=null;if((e.ctrlKey||e.metaKey)&&e.key==="z"){e.preventDefault();e.shiftKey?redo():undo()}if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();saveFile()}}}/>
 {#key locale}
-<div class="app-shell">
+<div class="app-shell" class:dropping={fileDrop} ondragenter={onFileDragOver} ondragover={onFileDragOver} ondragleave={onFileDragLeave} ondrop={onFileDrop}>
   <header class="topbar">
     <div class="brand"><span class="brand-mark">A</span><div><strong>ArtMaker</strong><small>PRINT CANVAS</small></div></div>
     <nav class="menu-actions"><button onclick={fresh}>{t("new")}</button><button onclick={()=>projectInput.click()}>{t("open")}</button><button onclick={saveFile}>{t("save")}</button><span></span><button onclick={()=>fileInput.click()}>{t("import")}</button><button onclick={openSettings}>{t("settings")}</button><span></span><button onclick={undo} disabled={!history.length}>{t("undo")}</button><button onclick={redo} disabled={!future.length}>{t("redo")}</button></nav>

@@ -1,13 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { createEffect, processPixels } from "./effects";
 import { migrateDocument } from "./project";
-import { documentPixels, newDocument, toPixels } from "./types";
+import { documentPixels, fitImportScale, newDocument, toPixels } from "./types";
 
 if (!(globalThis as {ImageData?:unknown}).ImageData) (globalThis as {ImageData:unknown}).ImageData=class { data:Uint8ClampedArray;width:number;height:number;constructor(data:Uint8ClampedArray,width:number,height:number){this.data=data;this.width=width;this.height=height} };
 
 describe("print dimensions", () => {
   it("converts physical units", () => { expect(toPixels(25.4,"mm",300)).toBe(300); expect(toPixels(1,"inch",300)).toBe(300); });
   it("includes four-sided bleed", () => { const size=documentPixels(newDocument().spec); expect(size).toEqual({width:827,height:1122,trimX:35,trimY:35,trimWidth:756,trimHeight:1051}); });
+});
+describe("import fit", () => {
+  it("keeps 1:1 unless both sides overflow", () => {
+    expect(fitImportScale(100,100,800,800)).toBe(1);
+    expect(fitImportScale(2000,500,800,800)).toBe(1);
+    expect(fitImportScale(2000,2000,800,800)).toBe(0.4);
+    expect(fitImportScale(1600,2000,800,800)).toBe(0.4);
+  });
 });
 describe("effect registry",()=>{it("creates isolated versioned effects",()=>{const a=createEffect("array"),b=createEffect("array");expect(a.version).toBe(2);expect(a.id).not.toBe(b.id);expect(a.params).toEqual({count:3,dx:24,dy:0});});});
 describe("color effects",()=>{
