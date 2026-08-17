@@ -28,10 +28,13 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - New documents default to 64×89 mm at 300 DPI with 3 mm bleed on each edge.
 - Preserve imported image originals. Never replace source bytes with a transformed or resampled copy.
 - Transform raw layer content into document space before applying its effect stack.
+- Linked layers share the source layer's raw pixel buffer. Each keeps its own transform, effects, opacity, and blend mode.
+- Pixel tools cannot edit a linked layer. Content replace writes to the source layer and updates every layer linked to it.
+- Deleting a source layer unlinks dependents and copies the last shared pixels onto them.
 - Convert document-space pointer coordinates through the active layer's inverse transform before editing its raw pixels.
 - The select tool shows the active layer's opaque-content bounds. Corner handles scale proportionally; edge handles scale X or Y only. The opposite side stays fixed.
 - Import draws into the layer buffer at 1:1 unless both source dimensions exceed the canvas, in which case it contain-fits so both sides fit.
-- Undo/redo restores a layer's bitmap and transform together.
+- Undo/redo restores a layer's bitmap and transform together. Linked-layer undo restores transform only.
 - Apply enabled effects strictly in their displayed order.
 - Halftone is a document-origin, integer-pixel square alpha mask; spacing is the empty gap between dots.
 - Contour builds a signed distance field from painted alpha (or Rec.709 luminance when the layer is fully opaque) and draws anti-aliased isolines, so strokes on a transparent layer fill the canvas with a topographic pattern.

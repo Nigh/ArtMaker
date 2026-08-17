@@ -13,14 +13,17 @@ export interface SourceAsset { id: string; name: string; mime: string; width: nu
 export interface ArtLayer {
   id: string; name: string; type: "paint" | "image" | "text" | "group"; visible: boolean; locked: boolean;
   opacity: number; blendMode: BlendMode; transform: Transform; effects: LayerEffect[]; assetId?: string;
-  bitmap?: string; text?: string; font?: string; fontSize?: number; color?: string; children?: ArtLayer[];
+  linkSourceId?: string; bitmap?: string; text?: string; font?: string; fontSize?: number; color?: string; children?: ArtLayer[];
 }
 
 export interface ArtMakerDocument {
-  format: "artmaker"; version: 2; id: string; name: string; locale: "zh-CN" | "en";
+  format: "artmaker"; version: 3; id: string; name: string; locale: "zh-CN" | "en";
   createdAt: string; updatedAt: string; spec: DocumentSpec; layers: ArtLayer[]; activeLayerId?: string;
   background: string | null;
 }
+
+export const DOCUMENT_VERSION = 3;
+export const PIXEL_TOOLS: ReadonlySet<Tool> = new Set(["brush", "eraser", "line", "rect", "ellipse", "fill"]);
 
 export const uid = () => crypto.randomUUID();
 export const defaultSpec = (): DocumentSpec => ({ unit: "mm", dpi: 300, width: 64, height: 89, bleed: { top: 3, right: 3, bottom: 3, left: 3 }, safeMargin: 3 });
@@ -37,4 +40,29 @@ export function scaleAround(tr: Transform, ax: number, ay: number, scaleX: numbe
   return { ...tr, scaleX, scaleY, x: tr.x + dx * Math.cos(a) - dy * Math.sin(a), y: tr.y + dx * Math.sin(a) + dy * Math.cos(a) };
 }
 export const newLayer = (name = "Paint layer"): ArtLayer => ({ id: uid(), name, type: "paint", visible: true, locked: false, opacity: 1, blendMode: "normal", transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 }, effects: [] });
-export const newDocument = (locale: "zh-CN" | "en" = "zh-CN"): ArtMakerDocument => { const layer = newLayer(locale === "zh-CN" ? "绘制图层" : "Paint layer"); const now = new Date().toISOString(); return { format: "artmaker", version: 2, id: uid(), name: "Untitled", locale, createdAt: now, updatedAt: now, spec: defaultSpec(), layers: [layer], activeLayerId: layer.id, background: "#ffffff" }; };
+export const newDocument = (locale: "zh-CN" | "en" = "zh-CN"): ArtMakerDocument => { const layer = newLayer(locale === "zh-CN" ? "绘制图层" : "Paint layer"); const now = new Date().toISOString(); return { format: "artmaker", version: DOCUMENT_VERSION, id: uid(), name: "Untitled", locale, createdAt: now, updatedAt: now, spec: defaultSpec(), layers: [layer], activeLayerId: layer.id, background: "#ffffff" }; };
+
+export function contentOwnerId(layers: ArtLayer[], layer: ArtLayer): string {
+  const seen = new Set<string>();
+  let current = layer;
+  while (current.linkSourceId && !seen.has(current.id)) {
+    seen.add(current.id);
+    const next = layers.find(item => item.id === current.linkSourceId);
+    if (!next) return layer.id;
+    current = next;
+  }
+  return current.linkSourceId && seen.has(current.id) ? layer.id : current.id;
+}
+
+export const linkDependents = (layers: ArtLayer[], sourceId: string) => layers.filter(layer => layer.linkSourceId === sourceId);
+export const linkableSources = (layers: ArtLayer[], fromId: string) => layers.filter(layer => layer.id !== fromId && !layer.linkSourceId);
+
+export function flattenLayerLinks(layers: ArtLayer[]) {
+  for (const layer of layers) {
+    if (!layer.linkSourceId) continue;
+    const ownerId = contentOwnerId(layers, layer);
+    if (ownerId === layer.id) delete layer.linkSourceId;
+    else layer.linkSourceId = ownerId;
+    if (layer.children) flattenLayerLinks(layer.children);
+  }
+}
