@@ -1,6 +1,6 @@
 export type Unit = "mm" | "inch";
 export type BlendMode = "normal" | "multiply" | "screen" | "overlay";
-export type Tool = "select" | "brush" | "eraser" | "line" | "rect" | "ellipse" | "fill" | "eyedropper";
+export type Tool = "select" | "brush" | "eraser" | "pattern" | "line" | "rect" | "ellipse" | "fill" | "eyedropper";
 
 export interface Bleed { top: number; right: number; bottom: number; left: number }
 export interface DocumentSpec { unit: Unit; dpi: number; width: number; height: number; bleed: Bleed; safeMargin: number }
@@ -28,7 +28,10 @@ export interface ArtMakerDocument {
 }
 
 export const DOCUMENT_VERSION = 4;
-export const PIXEL_TOOLS: ReadonlySet<Tool> = new Set(["brush", "eraser", "line", "rect", "ellipse", "fill"]);
+export const PIXEL_TOOLS: ReadonlySet<Tool> = new Set(["brush", "eraser", "pattern", "line", "rect", "ellipse", "fill"]);
+export function patternStampOrigin(w: number, h: number, p: { x: number; y: number }) {
+  return { x: Math.round(p.x - w / 2), y: Math.round(p.y - h / 2) };
+}
 export const SHAPE_TOOLS: ReadonlySet<Tool> = new Set(["line", "rect", "ellipse"]);
 export function pixelBox(x0: number, y0: number, x1: number, y1: number) {
   const x = Math.round(Math.min(x0, x1)), y = Math.round(Math.min(y0, y1));

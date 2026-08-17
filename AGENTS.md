@@ -43,5 +43,7 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - Selecting a mask enters edit mode: only the host layer is composited. Showing mask pixels is an edit-mode preview and is omitted from PNG export.
 - When changing serialized document structures, add an explicit migration and update round-trip tests.
 - Keep canvas interactions pixel-perfect at zoom levels of 100% and above.
+- Preview hides rulers, trim/safe guides, select handles, and the brush cursor, and composites every visible layer without the mask-edit overlay. Esc exits.
 - Square brush stamps an integer-pixel hard rectangle; round brush uses hardness.
+- Pattern brush stamps another layer's raw opaque-content bounds, centered on the cursor.
 - Rectangle and ellipse tools rubber-band a wireframe while dragging and stamp on release. Rectangles are integer-pixel hard edges; alpha 0 disables fill or stroke. Lines stamp a Bresenham integer-pixel stroke. Shift locks lines to 45°/90° and rect/ellipse to 1:1.
