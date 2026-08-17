@@ -23,7 +23,7 @@ export interface ArtMakerDocument {
 }
 
 export const uid = () => crypto.randomUUID();
-export const defaultSpec = (): DocumentSpec => ({ unit: "mm", dpi: 300, width: 90, height: 54, bleed: { top: 3, right: 3, bottom: 3, left: 3 }, safeMargin: 3 });
+export const defaultSpec = (): DocumentSpec => ({ unit: "mm", dpi: 300, width: 64, height: 89, bleed: { top: 3, right: 3, bottom: 3, left: 3 }, safeMargin: 3 });
 export const toPixels = (value: number, unit: Unit, dpi: number) => Math.round(value * dpi / (unit === "mm" ? 25.4 : 1));
 export const documentPixels = (spec: DocumentSpec) => ({
   width: toPixels(spec.width + spec.bleed.left + spec.bleed.right, spec.unit, spec.dpi),
