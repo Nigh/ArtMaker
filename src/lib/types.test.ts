@@ -25,4 +25,21 @@ describe("color effects",()=>{
   it("keeps the legacy replacement algorithm",()=>{const effect=createEffect("replaceColor");effect.params.color="#ff0000";const result=processPixels(new ImageData(new Uint8ClampedArray([0,0,0,255]),1,1),[effect]);expect([...result.data]).toEqual([255,0,0,255]);});
 });
 describe("halftone mask",()=>{it("creates exact 2x2 blocks separated by one pixel",()=>{const effect=createEffect("halftone");effect.params={dot:2,spacingX:1,spacingY:1,stagger:false};const bytes=new Uint8ClampedArray(6*6*4).fill(77);for(let i=3;i<bytes.length;i+=4)bytes[i]=255;const result=processPixels(new ImageData(bytes,6,6),[effect]);const alpha=[];for(let y=0;y<6;y++)alpha.push([...Array(6)].map((_,x)=>result.data[(y*6+x)*4+3]));expect(alpha).toEqual([[255,255,0,255,255,0],[255,255,0,255,255,0],[0,0,0,0,0,0],[255,255,0,255,255,0],[255,255,0,255,255,0],[0,0,0,0,0,0]]);expect([...result.data.slice(0,3)]).toEqual([77,77,77]);});});
+describe("contour",()=>{
+  const alphaAt=(data:Uint8ClampedArray,w:number,x:number,y:number)=>data[(y*w+x)*4+3];
+  it("leaves a blank transparent layer empty",()=>{const effect=createEffect("contour");const result=processPixels(new ImageData(new Uint8ClampedArray(8*8*4),8,8),[effect]);expect(result.data.every(v=>v===0)).toBe(true);});
+  it("draws anti-aliased rings from transparent paint",()=>{
+    const w=32,bytes=new Uint8ClampedArray(w*w*4);
+    for(let y=12;y<20;y++)for(let x=12;x<20;x++){const i=(y*w+x)*4;bytes[i]=255;bytes[i+3]=255;}
+    const effect=createEffect("contour");effect.params={levels:4,width:2,offset:0,invert:false};
+    const result=processPixels(new ImageData(bytes,w,w),[effect]),alphas=[...Array(w*w)].map((_,i)=>result.data[i*4+3]);
+    expect(alphas.some(a=>a===0)).toBe(true);
+    expect(alphas.some(a=>a>0&&a<255)).toBe(true);
+    let outside=0,solid=0;
+    for(let y=0;y<w;y++)for(let x=0;x<w;x++){const a=alphaAt(result.data,w,x,y);if(x>=12&&x<20&&y>=12&&y<20){if(a>200)solid++}else if(a>0)outside++}
+    expect(outside).toBeGreaterThan(20);
+    expect(solid).toBeLessThan(48);
+    const hit=alphas.findIndex(a=>a>200);expect(result.data[hit*4]).toBeGreaterThan(200);expect(result.data[hit*4+1]).toBeLessThan(20);
+  });
+});
 describe("project migration",()=>{it("maps v1 color effects and removes legacy halftone parameters",()=>{const old=newDocument() as unknown as {version:number;layers:Array<{effects:Array<Record<string,unknown>>}>};old.version=1;old.layers[0].effects=[{id:"a",type:"colorize",version:1,enabled:true,params:{color:"#fff",strength:1}},{id:"b",type:"halftone",version:1,enabled:true,params:{dot:2,spacingX:1,spacingY:1,stagger:false,angle:20,offsetX:3}}];const migrated=migrateDocument(old);expect(migrated.version).toBe(2);expect(migrated.layers[0].effects[0].type).toBe("replaceColor");expect(migrated.layers[0].effects[1].params).toEqual({dot:2,spacingX:1,spacingY:1,stagger:false});});});

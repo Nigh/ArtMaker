@@ -32,6 +32,7 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - Convert document-space pointer coordinates through the active layer's inverse transform before editing its raw pixels.
 - Apply enabled effects strictly in their displayed order.
 - Halftone is a document-origin, integer-pixel square alpha mask; spacing is the empty gap between dots.
+- Contour builds a signed distance field from painted alpha (or Rec.709 luminance when the layer is fully opaque) and draws anti-aliased isolines, so strokes on a transparent layer fill the canvas with a topographic pattern.
 - Colorize takes hue and saturation from its configured color and lightness from the Rec.709 grayscale source after the lightness adjustment.
 - When changing serialized document structures, add an explicit migration and update round-trip tests.
 - Keep canvas interactions pixel-perfect at zoom levels of 100% and above.
