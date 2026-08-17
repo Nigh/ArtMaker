@@ -30,17 +30,18 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - Preserve imported image originals. Never replace source bytes with a transformed or resampled copy.
 - Transform raw layer content into document space before applying its effect stack.
 - Linked layers share the source layer's raw pixel buffer. Each keeps its own transform, effects, opacity, blend mode, and mask.
-- Pixel tools cannot edit a linked layer's pixels. They can edit that layer's mask. Content replace writes to the source layer and updates every layer linked to it.
+- Pixel tools cannot edit a linked layer's pixels or an SVG layer's pixels. They can edit that layer's mask. Content replace writes to the source layer and updates every layer linked to it.
+- SVG imports keep the original markup in the source asset and rasterize into the layer buffer. Scaling an SVG content owner re-rasterizes from those bytes at the new visual size and bakes scale to ±1. Linked instances of an SVG source only transform.
 - Deleting a source layer unlinks dependents and copies the last shared pixels onto them.
 - Convert document-space pointer coordinates through the active layer's inverse transform before editing its raw pixels. Canvas-space masks paint in document pixels.
 - The select tool shows the active layer's opaque-content bounds. Corner handles scale proportionally; edge handles scale X or Y only. The opposite side stays fixed. The overlay is CSS-positioned in zoomed wrap pixels; template bindings must mention zoom so the frame updates with the viewport.
-- Import draws into the layer buffer at 1:1 unless both source dimensions exceed the canvas, in which case it contain-fits so both sides fit.
+- Import draws into the layer buffer at 1:1 unless both source dimensions exceed the canvas, in which case it contain-fits so both sides fit. New image layers insert above the active layer. SVG uses width/height, else viewBox, else 300×150, then the same fit rule.
 - Undo/redo restores a layer's bitmap, transform, and mask together. Linked-layer undo restores transform and mask only.
 - Apply enabled effects strictly in their displayed order.
 - Halftone is a document-origin, integer-pixel square alpha mask; spacing is the empty gap between dots.
 - Contour builds a signed distance field from painted alpha (or Rec.709 luminance when the layer is fully opaque) and draws anti-aliased isolines, so strokes on a transparent layer fill the canvas with a topographic pattern.
 - Colorize takes hue and saturation from its configured color and lightness from the Rec.709 grayscale source after the lightness adjustment.
-- A layer mask uses Rec.709 grayscale: black fully reveals the host, white fully covers it. Layer-space masks apply before the host transform; canvas-space masks apply after. The select tool moves and scales mask content while the mask is selected. Switching space rebakes pixels and the mask transform so the mask stays put on the canvas.
+- A layer mask uses Rec.709 grayscale: black fully reveals the host, white fully covers it. Layer-space masks apply before the host transform; canvas-space masks apply after. The select tool moves and scales mask content while the mask is selected. Switching space rebakes pixels and the mask transform so the mask stays put on the canvas. Painting a mask first rebakes any pending mask transform into the pixel buffer so strokes can continue across the full canvas.
 - Selecting a mask enters edit mode: only the host layer is composited. Showing mask pixels is an edit-mode preview and is omitted from PNG and CMYK PDF export.
 - CMYK PDF export keeps RGB editing. It uses 100% GCR on sRGB bytes, drops CMY below 4% so near-neutral blacks become K-only, composites remaining alpha onto white, and writes TrimBox/BleedBox from the document bleed. It is not ICC-based.
 - When changing serialized document structures, add an explicit migration and update round-trip tests.

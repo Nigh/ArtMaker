@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createEffect, processPixels, applyMaskLuminance, rebakeMaskData } from "./effects";
 import { migrateDocument, prepareExportDocument } from "./project";
-import { documentPixels, fitImportScale, newDocument, newLayer, patternStampOrigin, pixelBox, pixelLine, snapLine, snapSquare, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources } from "./types";
+import { documentPixels, fitImportScale, newDocument, newLayer, patternStampOrigin, pixelBox, pixelLine, snapLine, snapSquare, scaleAround, toPixels, contentOwnerId, flattenLayerLinks, linkDependents, linkableSources, isSvgSource, svgIntrinsicSize, sizedSvgMarkup, svgRebakeTransform } from "./types";
 
 if (!(globalThis as {ImageData?:unknown}).ImageData) (globalThis as {ImageData:unknown}).ImageData=class { data:Uint8ClampedArray;width:number;height:number;constructor(data:Uint8ClampedArray,width:number,height:number){this.data=data;this.width=width;this.height=height} };
 
@@ -15,6 +15,32 @@ describe("import fit", () => {
     expect(fitImportScale(2000,500,800,800)).toBe(1);
     expect(fitImportScale(2000,2000,800,800)).toBe(0.4);
     expect(fitImportScale(1600,2000,800,800)).toBe(0.4);
+  });
+});
+describe("svg source", () => {
+  it("reads explicit pixel size", () => {
+    expect(svgIntrinsicSize(`<svg width="24px" height="16" viewBox="0 0 24 16"></svg>`)).toEqual({width:24,height:16});
+  });
+  it("falls back to viewBox", () => {
+    expect(svgIntrinsicSize(`<svg viewBox="0 0 100 50"></svg>`)).toEqual({width:100,height:50});
+  });
+  it("derives the missing side from viewBox", () => {
+    expect(svgIntrinsicSize(`<svg width="200" viewBox="0 0 100 50"></svg>`)).toEqual({width:200,height:100});
+  });
+  it("defaults to 300x150", () => {
+    expect(svgIntrinsicSize(`<svg></svg>`)).toEqual({width:300,height:150});
+  });
+  it("sniffs mime, name, and markup", () => {
+    expect(isSvgSource({mime:"image/svg+xml"})).toBe(true);
+    expect(isSvgSource({name:"icon.SVG"})).toBe(true);
+    expect(isSvgSource({head:"<?xml version='1.0'?><svg xmlns='http://www.w3.org/2000/svg'>"})).toBe(true);
+    expect(isSvgSource({mime:"image/png",name:"a.png",head:"\x89PNG"})).toBe(false);
+  });
+  it("sets root width and height for rasterization", () => {
+    expect(sizedSvgMarkup(`<svg viewBox="0 0 10 10" width="10">`,20,30)).toBe(`<svg width="20" height="30" viewBox="0 0 10 10">`);
+  });
+  it("bakes scale into a centered blit and keeps the document origin", () => {
+    expect(svgRebakeTransform({x:0,y:0,scaleX:2,scaleY:2,rotation:0},40,20,80,40,100,100)).toEqual({x:50,y:50,scaleX:1,scaleY:1,rotation:0});
   });
 });
 describe("pixel box", () => {
@@ -111,6 +137,12 @@ describe("layer masks",()=>{
     const mask=pixel(4,1,1,255,255,255,255),host={x:1,y:0,scaleX:1,scaleY:1,rotation:0},local={x:1,y:0,scaleX:1,scaleY:1,rotation:0};
     const canvas=rebakeMaskData(mask,host,"layer","canvas",local);
     expect(canvas.data[(1*4+3)*4+3]).toBe(255);
+  });
+  it("bakes a pending mask transform in the same space",()=>{
+    const mask=pixel(4,1,1,255,255,255,255),host={x:0,y:0,scaleX:1,scaleY:1,rotation:0},local={x:2,y:0,scaleX:1,scaleY:1,rotation:0};
+    const out=rebakeMaskData(mask,host,"layer","layer",local);
+    expect(out.data[(1*4+3)*4+3]).toBe(255);
+    expect(out.data[(1*4+1)*4+3]).toBe(0);
   });
 });
 describe("layer links",()=>{
