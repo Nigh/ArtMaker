@@ -74,6 +74,37 @@ export const documentPixels = (spec: DocumentSpec) => ({
   trimWidth: toPixels(spec.width, spec.unit, spec.dpi), trimHeight: toPixels(spec.height, spec.unit, spec.dpi),
 });
 export const fitImportScale = (iw: number, ih: number, cw: number, ch: number) => iw > cw && ih > ch ? Math.min(cw / iw, ch / ih) : 1;
+const parseSvgLen = (value?: string) => { if (!value || /%/.test(value)) return 0; const n = parseFloat(value); return Number.isFinite(n) && n > 0 ? n : 0; };
+export function isSvgSource(src: { mime?: string; name?: string; head?: string }) {
+  if (src.mime?.toLowerCase().includes("svg")) return true;
+  if (src.name && /\.svg$/i.test(src.name)) return true;
+  return Boolean(src.head && /<svg[\s>]/i.test(src.head));
+}
+export function svgIntrinsicSize(svg: string) {
+  const root = svg.match(/<svg\b[^>]*>/i)?.[0] ?? "";
+  const width = parseSvgLen(root.match(/\bwidth\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i)?.slice(1).find(Boolean));
+  const height = parseSvgLen(root.match(/\bheight\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i)?.slice(1).find(Boolean));
+  const vb = root.match(/\bviewBox\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i)?.slice(1).find(Boolean)?.trim().split(/[\s,]+/).map(Number);
+  const vw = vb && vb.length >= 4 && Number.isFinite(vb[2]) && Number.isFinite(vb[3]) ? Math.abs(vb[2]) : 0;
+  const vh = vb && vb.length >= 4 ? Math.abs(vb[3]) : 0;
+  if (width && height) return { width, height };
+  if (vw && vh) {
+    if (width) return { width, height: width * vh / vw };
+    if (height) return { width: height * vw / vh, height };
+    return { width: vw, height: vh };
+  }
+  return { width: width || 300, height: height || 150 };
+}
+export function sizedSvgMarkup(svg: string, width: number, height: number) {
+  return svg.replace(/<svg\b[^>]*>/i, tag => tag.replace(/\s(?:width|height)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "").replace(/<svg/i, `<svg width="${width}" height="${height}"`));
+}
+export function svgRebakeTransform(tr: Transform, oldW: number, oldH: number, newW: number, newH: number, canvasW: number, canvasH: number): Transform {
+  const a = tr.rotation * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a);
+  const oldBx = (canvasW - oldW) / 2, oldBy = (canvasH - oldH) / 2;
+  const tlx = oldBx * tr.scaleX * cos - oldBy * tr.scaleY * sin + tr.x, tly = oldBx * tr.scaleX * sin + oldBy * tr.scaleY * cos + tr.y;
+  const sx = tr.scaleX < 0 ? -1 : 1, sy = tr.scaleY < 0 ? -1 : 1, newBx = (canvasW - newW) / 2, newBy = (canvasH - newH) / 2, rx = newBx * sx, ry = newBy * sy;
+  return { rotation: tr.rotation, scaleX: sx, scaleY: sy, x: tlx - (rx * cos - ry * sin), y: tly - (rx * sin + ry * cos) };
+}
 export function scaleAround(tr: Transform, ax: number, ay: number, scaleX: number, scaleY: number): Transform {
   const a = tr.rotation * Math.PI / 180, dx = (tr.scaleX - scaleX) * ax, dy = (tr.scaleY - scaleY) * ay;
   return { ...tr, scaleX, scaleY, x: tr.x + dx * Math.cos(a) - dy * Math.sin(a), y: tr.y + dx * Math.sin(a) + dy * Math.cos(a) };
