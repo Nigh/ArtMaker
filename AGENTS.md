@@ -30,6 +30,7 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - Import draws into the layer buffer at 1:1 unless both source dimensions exceed the canvas, in which case it contain-fits so both sides fit.
 - Transform raw layer content into document space before applying its effect stack.
 - Convert document-space pointer coordinates through the active layer's inverse transform before editing its raw pixels.
+- Undo/redo restores a layer's bitmap and transform together.
 - Apply enabled effects strictly in their displayed order.
 - Halftone is a document-origin, integer-pixel square alpha mask; spacing is the empty gap between dots.
 - Contour builds a signed distance field from painted alpha (or Rec.709 luminance when the layer is fully opaque) and draws anti-aliased isolines, so strokes on a transparent layer fill the canvas with a topographic pattern.
