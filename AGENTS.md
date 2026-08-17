@@ -32,7 +32,7 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - Pixel tools cannot edit a linked layer's pixels. They can edit that layer's mask. Content replace writes to the source layer and updates every layer linked to it.
 - Deleting a source layer unlinks dependents and copies the last shared pixels onto them.
 - Convert document-space pointer coordinates through the active layer's inverse transform before editing its raw pixels. Canvas-space masks paint in document pixels.
-- The select tool shows the active layer's opaque-content bounds. Corner handles scale proportionally; edge handles scale X or Y only. The opposite side stays fixed.
+- The select tool shows the active layer's opaque-content bounds. Corner handles scale proportionally; edge handles scale X or Y only. The opposite side stays fixed. The overlay is CSS-positioned in zoomed wrap pixels; template bindings must mention zoom so the frame updates with the viewport.
 - Import draws into the layer buffer at 1:1 unless both source dimensions exceed the canvas, in which case it contain-fits so both sides fit.
 - Undo/redo restores a layer's bitmap, transform, and mask together. Linked-layer undo restores transform and mask only.
 - Apply enabled effects strictly in their displayed order.
