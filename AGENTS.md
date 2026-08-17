@@ -21,6 +21,7 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - `src/lib/types.ts` defines the versioned document, layers, transforms, and assets.
 - `src/lib/effects.ts` defines the effect registry and ordered pixel-effect pipeline.
 - `src/lib/project.ts` handles `.artmaker` archives, IndexedDB recovery, and format migration.
+- `src/lib/cmyk.ts` converts the flattened sRGB canvas to DeviceCMYK and writes a print PDF.
 
 ## Invariants
 
@@ -40,7 +41,8 @@ After every project edit, review and update this `AGENTS.md` in the same change 
 - Contour builds a signed distance field from painted alpha (or Rec.709 luminance when the layer is fully opaque) and draws anti-aliased isolines, so strokes on a transparent layer fill the canvas with a topographic pattern.
 - Colorize takes hue and saturation from its configured color and lightness from the Rec.709 grayscale source after the lightness adjustment.
 - A layer mask uses Rec.709 grayscale: black fully reveals the host, white fully covers it. Layer-space masks apply before the host transform; canvas-space masks apply after. The select tool moves and scales mask content while the mask is selected. Switching space rebakes pixels and the mask transform so the mask stays put on the canvas.
-- Selecting a mask enters edit mode: only the host layer is composited. Showing mask pixels is an edit-mode preview and is omitted from PNG export.
+- Selecting a mask enters edit mode: only the host layer is composited. Showing mask pixels is an edit-mode preview and is omitted from PNG and CMYK PDF export.
+- CMYK PDF export keeps RGB editing. It uses 100% GCR on sRGB bytes, drops CMY below 4% so near-neutral blacks become K-only, composites remaining alpha onto white, and writes TrimBox/BleedBox from the document bleed. It is not ICC-based.
 - When changing serialized document structures, add an explicit migration and update round-trip tests.
 - Keep canvas interactions pixel-perfect at zoom levels of 100% and above.
 - Preview hides rulers, trim/safe guides, select handles, and the brush cursor, and composites every visible layer without the mask-edit overlay. Esc exits.
